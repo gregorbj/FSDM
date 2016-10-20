@@ -1,9 +1,14 @@
 #ui.R
+#Author: Brian Gregor, Oregon Systems Analytics LLC
 
+
+#LOAD RESOURCES
+#--------------
+#Packages
 library(shiny)
 library(shinyBS)
 library(DT)
-
+#Function to support text area inputs
 textareaInput <- function(id, label, value="", rows=5, cols=40, class="form-control"){
   tags$div(
     class="form-group shiny-input-container",
@@ -12,10 +17,11 @@ textareaInput <- function(id, label, value="", rows=5, cols=40, class="form-cont
 }
 
 
+#SHINY UI FUNCTION
+#-----------------
 shinyUI(
   navbarPage(
     "Logic Laboratory",
-    
     
     #Introduction Screen
     #-------------------
@@ -46,7 +52,6 @@ shinyUI(
         )
       )
     ),
-    
     
     #Build a Model Screen
     #--------------------
@@ -109,7 +114,7 @@ shinyUI(
                               tabPanel("Concepts", DT::dataTableOutput("conceptsTable"), value = "table")
                             )
                           )
-                              
+                          
                 ),
                 tabPanel( "Edit Relations",
                           sidebarLayout(
@@ -135,7 +140,7 @@ shinyUI(
                               tabsetPanel(
                                 tabPanel(
                                   title = "Relations Map",
-                                  plotOutput("relations_map", click = "map_click")
+                                  plotOutput("relations_map")
                                 ),
                                 tabPanel(
                                   title = "Relations Graph"
@@ -158,7 +163,6 @@ shinyUI(
                 )
     ),
     
-    
     #Create Scenarios Screen
     #-----------------------
     tabPanel(
@@ -166,35 +170,59 @@ shinyUI(
       titlePanel("Create Scenarios"),
       sidebarLayout(
         sidebarPanel(
-          h4("Select Scenario"),
-          hr(),
-          radioButtons(
-            inputId = "scenarioAction", 
-            label = "Scenario Action",
-            choices = list("Create New Scenario From Scratch" = "newScenario",
-                           "Create New Model From Copy" = "copyScenario",
-                           "Edit Existing Scenario" = "editScenario")
-          ),
-          conditionalPanel(
-            condition = "input.scenarioAction == 'newScenario' || input.scenarioAction == 'copyScenario'",
-            textInput("scenarioName", "Scenario Name", "")
-          ),
-          bsAlert(
-            "nonameAlert"
-          ),
-          conditionalPanel(
-            condition = "input.scenarioAction == 'copyScenario' || input.scenarioAction == 'editScenario'",
-            uiOutput("selectScenarioFile")
-          ),
-          actionButton("startScenario", "Start Working on Scenario")
+          tabsetPanel(
+            tabPanel(
+              title = "Select Scenario",
+              br(),
+              radioButtons(
+                inputId = "scenarioAction", 
+                label = "Scenario Action",
+                choices = list("Create New Scenario From Scratch" = "newScenario",
+                               "Create New Scenario From Copy" = "copyScenario",
+                               "Edit Existing Scenario" = "editScenario")
+              ),
+              conditionalPanel(
+                condition = "input.scenarioAction == 'newScenario' || input.scenarioAction == 'copyScenario'",
+                textInput("scenarioName", "Scenario Name", "")
+              ),
+              bsAlert(
+                "noscenarioAlert"
+              ),
+              conditionalPanel(
+                condition = "input.scenarioAction == 'copyScenario' || input.scenarioAction == 'editScenario'",
+                uiOutput("selectScenarioFile")
+              ),
+              actionButton("startScenario", "Start Working on Scenario")              
+            ),
+            tabPanel(
+              title = "Edit Scenario Values",
+              br(),
+              textInput("conceptVarName", "Concept Variable Name"),
+              textInput("conceptStartValue", "Concept Starting Value"),
+              textInput("conceptStartChange", "Concept Starting Change"),
+              textareaInput("conceptValuesDescription", "Concept Values Description"),
+              actionButton("updateScenario", "Update"),
+              actionButton("undoScenarioAction", "Undo"),
+              actionButton("validateScenario", "Validate"),
+              actionButton("saveScenario", "Save")
+            )
+          )
         ),
         mainPanel(
-          
-          
+          tabsetPanel(
+            tabPanel(
+              "Scenario Values", 
+              DT::dataTableOutput("scenarioTable"), 
+              value = "table"
+              ),
+            tabPanel(
+              "Validation Results",
+              verbatimTextOutput("validationMsg")
+              )
+          )
         )
       )
     ),
-    
     
     #Run the Model Screen
     #--------------------
@@ -202,11 +230,25 @@ shinyUI(
       "3) Run the Model",
       titlePanel("Run the Model"),
       sidebarLayout(
-        sidebarPanel(),
-        mainPanel()
+        sidebarPanel(
+          h4("List Model Scenarios"),
+          actionButton("listScenarios", "List Scenarios"),
+          hr(),
+          h4("Scenarios that have been validated and may be run"),
+          uiOutput("selectScenariosToRun"),
+          hr(),
+          h4("Scenarios that must be validated before they can be run"),
+          verbatimTextOutput("invalidScenarios"),
+          hr(),
+          p("Pressing the ", strong("Run Model"), " button will run the model for all the scenarios that are checked in the list above. Outputs will be saved in the respective scenario directories."),
+          actionButton("runModel", "Run Model"),
+          actionButton("resetRun", "Reset")
+        ),
+        mainPanel(
+          h4(textOutput("runMessage"))
+        )
       )
     ),
-    
     
     #Analyze Results Screen
     #----------------------
@@ -214,8 +256,14 @@ shinyUI(
       "4) Analyze Results",
       titlePanel("Analyze Results"),
       sidebarLayout(
-        sidebarPanel(),
-        mainPanel()
+        sidebarPanel(
+          uiOutput("selectScenarioPlot1"),          
+          uiOutput("selectScenarioPlot2"),
+          uiOutput("selectVarsToPlot")
+        ),
+        mainPanel(
+          plotOutput("resultsPlot")
+        )
       )
     )
     
