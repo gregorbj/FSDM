@@ -1,4 +1,7 @@
 #helper.R
+#Author: Brian Gregor, Oregon Systems Analytics LLC
+#Copyright: Oregon Department of Transportation 2016
+#License: Apache 2
 
 
 ############################################
@@ -41,6 +44,16 @@ initializeNewModel <- function(ModelName) {
     CopyDir, c("concepts.json", "relations.json")
     )
   file.copy(FilesToCopy_, NewDir, recursive = TRUE)
+  #Create scenarios directory if does not exist
+  ScenarioPath <- file.path(NewDir, "scenarios")
+  if (!dir.exists(ScenarioPath)) {
+    dir.create(ScenarioPath)
+  }
+  #Create analysis directory if does not exist
+  AnalysisPath <- file.path(NewDir, "analysis")
+  if (!dir.exists(AnalysisPath)) {
+    dir.create(AnalysisPath)
+  }
   #Return the status list  
   status_ls
 }
@@ -81,7 +94,17 @@ initializeCopyModel <- function(ModelName, CopyModelName, CopyScenarios = FALSE)
     FilesToCopy_ <- file.path(
       CopyDir, c("status.json", "concepts.json", "relations.json")
     )
-    file.copy(FilesToCopy_, NewDir)      
+    file.copy(FilesToCopy_, NewDir)
+    #Create scenarios directory if does not exist
+    ScenarioPath <- file.path(NewDir, "scenarios")
+    if (!dir.exists(ScenarioPath)) {
+      dir.create(ScenarioPath)
+    }
+  }
+  #Create analysis directory if does not exist
+  AnalysisPath <- file.path(NewDir, "analysis")
+  if (!dir.exists(AnalysisPath)) {
+    dir.create(AnalysisPath)
   }
   status_ls <- list(name = ModelName,
                     parent = CopyModelName,
@@ -389,6 +412,12 @@ initRelationsEntry <- function(VarName){
 #' NULL
 #' @return a logical value identifying whether the plot can be created
 #' @export
+Model_ls <- list()
+Model_ls$concepts <- loadModelConcepts("Gopher")
+Model_ls$relations <- loadModelRelations("Gopher")
+FromConcept = NULL
+FromGroup = "All"
+ToGroup = "All"
 mapRelations <- 
   function(Model_ls, FromConcept = NULL, FromGroup = "All", ToGroup = "All") {
     #Extract all the concept names, variable names, and group names
@@ -409,7 +438,7 @@ mapRelations <-
       FromConcept <- nameToVar(FromConcept)
     }
     #Make a matrix of relations
-    Relations_mx <- makeAdjacencyMatrix(Model_ls$relations)[Nv,Nv]
+    Relations_mx <- makeAdjacencyMatrix(Model_ls$relations, Type = "Values")$Direction[Nv,Nv]
     #Function to select portion of matrix and return a matrix regardless of how
     #many rows and columns are selected
     selectMatrix <- function(Matrix, RowSelect, ColSelect) {
@@ -450,15 +479,15 @@ mapRelations <-
     if (!is.null(FromConcept)) {
       if (FromConcept %in% rownames(Selected_mx)) {
         RowSelect <- c(FromConcept, RowSelect[RowSelect != FromConcept])
-        if (sum(Selected_mx[FromConcept,]) != 0) {
+        if (sum(!is.na(Selected_mx[FromConcept,])) != 0) {
           ColSelect <- 
             c(
-              ColSelect[which(Selected_mx[FromConcept,])],
-              ColSelect[-which(Selected_mx[FromConcept,])]
+              ColSelect[which(!is.na(Selected_mx[FromConcept,]))],
+              ColSelect[-which(!is.na(Selected_mx[FromConcept,]))]
             )
         }
         if (FromConcept %in% rownames(Selected_mx)) {
-          NumHighlighted <- sum(Selected_mx[FromConcept,])
+          NumHighlighted <- sum(!is.na(Selected_mx[FromConcept,]))
         } else {
           NumHighlighted <- 0
         }
@@ -472,18 +501,26 @@ mapRelations <-
     YVals1_ <- (nrow(Selected_mx):1 + MaxVal - nrow(Selected_mx)) * 1
     YVals2_ <- (ncol(Selected_mx):1 + MaxVal - ncol(Selected_mx)) * 1
     XVals_ <- c(rep(2, length(YVals1_)), rep(6, length(YVals2_)))
-    Y0_ <- rep(YVals1_, apply(Selected_mx, 1, sum))
+    Y0_ <- rep(YVals1_, apply(!is.na(Selected_mx), 1, sum))
     X0_ <- rep(2, length(Y0_))
-    Y1_ <- rep(YVals2_, nrow(Selected_mx))[as.vector(t(Selected_mx))]
+    Y1_ <- rep(YVals2_, nrow(Selected_mx))[as.vector(t(!is.na(Selected_mx)))]
     X1_ <- rep(6,length(Y1_))
     if (exists("NumHighlighted")) {
-      Col_ <- 
-        c(rep("red", NumHighlighted), rep("grey", length(X0_) - NumHighlighted))
+      Col_ <- as.vector(t(Selected_mx))
+      Col_ <- Col_[!is.na(Col_)]
+      Col_[Col_ == "Negative"] <- "red"
+      Col_[Col_ == "Positive"] <- "black"
       Lwd_ <-
-        c(rep(2, NumHighlighted), rep(1, length(X0_) - NumHighlighted))
+        c(rep(3, NumHighlighted), rep(1, length(X0_) - NumHighlighted))
+      Lty_ <- as.vector(t(Selected_mx))
+      Lty_ <- Lty_[!is.na(Lty_)]
+      Lty_[Lty_ == "Negative"] <- "2"
+      Lty_[Lty_ == "Positive"] <- "1"
+      Lty_ <- as.numeric(Lty_)
     } else {
       Col_ <- rep("grey", length(X0_))
       Lwd_ <- rep(1, length(X0_))
+      Lty_ <- rep(1, length(X0_))
     }
     Labels1_ <- varToName(rownames(Selected_mx))
     Labels2_ <- varToName(colnames(Selected_mx))
@@ -495,6 +532,7 @@ mapRelations <-
       YLim = YLim_,
       Col = Col_,
       Lwd = Lwd_,
+      Lty = Lty_,
       Labels1 = Labels1_,
       Labels2 = Labels2_,
       X0 = X0_,
@@ -505,6 +543,108 @@ mapRelations <-
     )
     Map
   }    
+
+#---------------------------------------------------------------
+#Define function to create a dot file for plotting with GraphViz
+#---------------------------------------------------------------
+#' Create a DOT file for GraphViz
+#'
+#' \code{makeDotFile} create and save a dot file to be displayed by GraphViz
+#'
+#' This function writes out a dot file to be rendered using GraphViz.
+#'
+#' @param Relations_ls a list of model relations.
+#' @param Concepts_df a data frame with model concepts.
+#' @param RowGroup a string identifying the names of the name of the group that
+#' selects rows from the relationship table to plot. The default 'All' selects
+#' all the rows.
+#' @param ColGroup a string identifying the name of the group that selects
+#' columns from the relationship table to plot. The default 'All' selects all
+#' the columns.
+#' @param orientation a string identifying the GraphViz layout orientation
+#' ('Portrait' or 'Landscape').
+#' @param rankdir a string identifying the graph orientation:
+#' 'TB' for top to bottom, 'LR' for left to right.
+#' @param shape a string identifying the shape of the graph nodes (e.g. 'box').
+#' @param Show a string identifying how to label the edges. The default value
+#' "label" results in showing the fuzzy label (e.g. VL, L, M, H, VH). The
+#' alternative, "value", results in showing the equivalent numeric value.
+#' @return A string specification of a DOT.
+#' @export
+makeDot <-
+  function(Relations_ls, Concepts_df, RowGroup = "All", ColGroup = "All",
+           orientation = "Portrait", rankdir = "Top-to-Bottom", shape = "box",
+           Show = "label")
+  {
+    #Make matrices of relations and labels
+    Relates_ls <- makeAdjacencyMatrix(Relations_ls, Type = "Values")
+    Cn <- Concepts_df$variable
+    Vals <- c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675,
+             H = 0.75, VH = 0.99)
+    Signs <- c(Positive = 1, Negative = -1)    
+    Relates.CnCn <- 
+      apply(Relates_ls$Weight[Cn,Cn], 2, function(x) Vals[x]) *
+      apply(Relates_ls$Direction[Cn,Cn], 2, function(x) Signs[x])
+    rownames(Relates.CnCn) <- Cn
+    Labels.CnCn <- Relates_ls$Weight[Cn,Cn]
+    #Create row and column indices for selected row and column groups
+    if (RowGroup == "All") {
+      Cr <- Cn
+    } else {
+      Cr <- Cn[Concepts_df$group %in% RowGroup]
+    }
+    if (ColGroup == "All") {
+      Cc <- Cn
+    } else {
+      Cc <- Cn[Concepts_df$group %in% ColGroup]
+    }
+    #Select relations and labels matrices for selected rows and columns
+    Relates.CrCc <- Relates.CnCn[Cr,Cc]
+    Labels.CrCc <- Labels.CnCn[Cr,Cc]
+    #Remove rows and columns that are all NA values
+    AllNARows_ <- apply(Relates.CrCc, 1, function(x) all(is.na(x)))
+    AllNACols_ <- apply(Relates.CrCc, 2, function(x) all(is.na(x)))
+    Relates.CrCc <- Relates.CrCc[!AllNARows_, !AllNACols_]
+    Labels.CrCc <- Labels.CrCc[!AllNARows_, !AllNACols_]
+    #Update Cr and Cc and identify unique concepts
+    Cr <- rownames(Relates.CrCc)
+    Cc <- colnames(Relates.CrCc)
+    Concepts. <- unique(c(Cr,Cc))
+    #Convert rankdir argument
+    if (rankdir == "Top-to-Bottom") rankdir <- "TB"
+    if (rankdir == "Left-to-Right") rankdir <- "LR"
+    #Make DOT data
+    Dot_ <-
+      paste("digraph {\n orientation =", orientation, ";\n rankdir =", rankdir, ";\n")
+    for (concept in Concepts.) {
+      Dot_ <- paste(Dot_, concept, "[ shape =", shape, "];\n")
+    }
+    for (cr in Cr) {
+      for (cc in Cc) {
+        Value <- Relates.CrCc[cr,cc]
+        if (!is.na(Value)) {
+          if (Show == "label") {
+            Label <- Labels.CrCc[cr,cc]
+          } else {
+            Label <- Value
+          }
+          if (Value != 0) {
+            if (Value > 0) {
+              Dot_ <- paste0(Dot_, cr, " -> ", cc, "[ label=", Label, " ];\n")
+            } else {
+              Dot_ <-
+                paste0(
+                  Dot_, cr, " -> ", cc, "[ color=red, fontcolor=red, style=dashed, label=", Label, " ];\n"
+                )
+            }
+          }
+        }
+      }
+    }
+    Dot_ <- paste(Dot_, "}")
+    #Return the resulting DOT description
+    Dot_
+  }
 
 
 ###############################################
@@ -552,7 +692,8 @@ initializeNewScenario <- function(ModelName, ScenarioName, Concepts_df) {
     data.frame(name = Concepts_,
                startvalue = rep("NA", length(Concepts_)),
                startchange = rep("NA", length(Concepts_)),
-               description = rep("", length(Concepts_))
+               description = rep("", length(Concepts_)),
+               stringsAsFactors = FALSE
                )
   writeLines(toJSON(values_df), file.path(NewDir, "scenario.json"))
   #Return the list of status and values
@@ -666,7 +807,7 @@ saveScenario <- function(ScenarioData) {
 #' values are consistent with the value ranges for the concepts, and whether
 #' the starting changes are consistent with the ranges and don't vary too many.
 #' 
-#' @param Scenario_df a data frame containing the scenario values
+#' @param Values_df a data frame containing the scenario values
 #' @param Concepts_df a data frame containing the model concepts
 #' @return a list having three components, a logical identifying whether the
 #' scenario validates, a list of all validation errors, and a character string
@@ -705,7 +846,7 @@ validateScenario <- function(Values_df, Concepts_df) {
     MinVal <- as.numeric(ValRng_df[cn,"min"])
     MaxVal <- as.numeric(ValRng_df[cn,"max"])
     if (!is.na(StartVal)) {
-      if( (StartVal < MinVal) | (StartVal > MaxVal) ) {
+      if ((StartVal < MinVal) | (StartVal > MaxVal)) {
         ErrMsg <- paste("'startvalue' value for", cn, "is outside the range of acceptable values.")
         Errors_ <- c(Errors_, "\n", ErrMsg)
         HasErrors <- TRUE
@@ -721,8 +862,10 @@ validateScenario <- function(Values_df, Concepts_df) {
   #Check whether all the startchange values are within range
   for (cn in Cn) {
     ChangeVal <- as.numeric(Values_mx[cn, "startchange"])
-    if( !is.na(ChangeVal) ) {
-      if( (ChangeVal < MinVal) | (ChangeVal > MaxVal) ) {
+    MinVal <- as.numeric(ValRng_df[cn,"min"])
+    MaxVal <- as.numeric(ValRng_df[cn,"max"])
+    if (!is.na(ChangeVal)) {
+      if ((ChangeVal < MinVal) | (ChangeVal > MaxVal)) {
         ErrMsg <- paste("'startchange' value for", cn, "is outside the range of acceptable values.")
         Errors_ <- c(Errors_, "\n", ErrMsg)
         HasErrors <- TRUE
@@ -894,6 +1037,7 @@ rescale <- function(Value, FromRange, ToRange=c(0,100)) {
 #' ValueRange = a data frame which provides the minimum and maximum values of
 #' each concept.
 #' @export
+"models/Futures"
 createFuzzyModel <- 
   function(Dir,
            Vals = c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675,
@@ -970,6 +1114,7 @@ createFuzzyScenario <- function(Dir, M) {
     MaxVal <- as.numeric(ValRng_df[cn,"max"])
     StartValues_Cn[cn] <- rescale(StartVal, c(MinVal, MaxVal) )
   }
+  StartValues_Cn[StartValues_Cn == 0] <- 0.1
   #Record the change to targets
   ChangeTo_Cn <- numeric(length(M$Cn))
   names(ChangeTo_Cn) <- M$Cn
@@ -1113,14 +1258,7 @@ adjustLevel <- function(InputChg_Cn, Level_Cn) {
 #' Full - the relative concept values (e.g. 0 - 100) for each increment and
 #' each iteration.
 #' @export
-
-# M <- Model_ls
-# S <- Scenario_ls
-# Pow <- 10
-# NumIncr <- 100
-# MaxIter <- 100
-
-runFuzzyModel <- function(M, S, Pow = 10, NumIncr = 10, MaxIter=100){
+runFuzzyModel <- function(M, S, Pow = 10, NumIncr = 20, MaxIter=100){
   #Iterate through number of increments to increase inputs
   Final_ <- list()
   ChangeTargets_Cn <- S$ChangeTo
@@ -1185,15 +1323,88 @@ runFuzzyModel <- function(M, S, Pow = 10, NumIncr = 10, MaxIter=100){
         rescale(x, c(0,100), unlist(M$ValueRange[cn,]))
       })
   }
-  list(Summary = FinalResults_ItCn, ScaleSummary = RescaleResults_ItCn, Full = Final_)
+  list(ScaledSummary = FinalResults_ItCn, 
+       RescaledSummary = RescaleResults_ItCn, 
+       ScaledFull = Final_)
 }
 
 
-#Define function to load an RData object to an object name
-#=========================================================
-assignLoad <- function(filename){
-  load(filename)
-  get(ls()[ls() != "filename"])
+###############################################
+#---------------------------------------------#
+#           ANALYZE MODEL RESULTS             #
+#---------------------------------------------#
+###############################################
+
+#---------------------------------------------------------------
+#Define a function to identify model scenarios that have outputs
+#---------------------------------------------------------------
+#' Identify scenarios that have model outputs
+#' 
+#' \code{idScenWithOutputs} returns the names of scenarios that have model run
+#' outputs.
+#' 
+#' This function takes the name of a model and returns a vector of the names
+#' of all the model scenarios that have model outputs.
+#' 
+#' @param Model a string representation of the model name.
+#' @return a string vector of the names of scenarios having model outputs.
+#' @export
+idScenWithOutputs <- function(ModelName) {
+  ScenPath <- file.path("../models", ModelName, "scenarios")
+  Sc <- dir(ScenPath)
+  HasOutputs_ <- sapply(Sc, function(x) {
+    file.exists(file.path(ScenPath, x, "Outputs_ls.RData"))
+  })
+  Sc[HasOutputs_]
 }
 
+#------------------------------------------------------
+#Define function to format output data to plot and save
+#------------------------------------------------------
+#' Create data frame of selected scenarios and concepts to plot and save
+#'
+#' \code{formatOutputData} makes a data frame of the summary results for selected
+#' scenarios and selected concepts.
+#'
+#' This function creates a data frame of model results for selected scenarios
+#' and selected concepts. The data frame is in 'flat' format where values are
+#' in one column and the corresponding concept names, scenario names, and 
+#' iterations are in separate columns.
+#'
+#' @param Model a string representation of the model name.
+#' @param Sc a vector of the names of scenarios to include.
+#' @param Vn the variable names for the concepts to include.
+#' @return A data frame having columns identifying the scenario, concept,
+#' iteration, scaled values, and rescaled values.
+#' @export
+formatOutputData <- function(ModelName, Sc, Vn) {
+  ScenPath <- file.path("../models", ModelName, "scenarios")
+  ModelOut_ls <- list()
+  for (sc in Sc) {
+    DataPath <- file.path(ScenPath, sc, "Outputs_ls.RData")
+    if (file.exists(DataPath)) {
+      load(DataPath)
+      ModelOut_ls[[sc]]$Scaled <- Outputs_ls$ScaledSummary
+      ModelOut_ls[[sc]]$Rescaled <- Outputs_ls$RescaledSummary
+    }
+  }
+  Results_ls <- 
+    lapply(ModelOut_ls, function(x) {
+      Sc <- rownames(x$Scaled)
+      Scaled_mx <- x$Scaled[Sc, Vn]
+      Rescaled_mx <- x$Rescaled[Sc, Vn]
+      data.frame(
+        Concept = rep(Vn, each = length(Sc)),
+        Iteration = rep(1:length(Sc), length(Vn)),
+        Scaled = as.vector(Scaled_mx),
+        Rescaled = as.vector(Rescaled_mx)
+      )
+    })
+  for (i in 1:length(Results_ls)) {
+    Results_ls[[i]]$Scenario <- names(Results_ls)[i]
+  }
+  Results_df <- do.call(rbind, Results_ls)
+  rownames(Results_df) <- NULL
+  Results_df
+}
 

@@ -1,5 +1,7 @@
 #server.R
 #Author: Brian Gregor, Oregon Systems Analytics LLC
+#Copyright: Oregon Department of Transportation 2016
+#License: Apache 2
 
 
 #LOAD RESOURCES
@@ -9,6 +11,8 @@ library(shiny)
 library(shinyBS)
 library(jsonlite)
 library(DT)
+library(ggplot2)
+library(DiagrammeR)
 #Helper.R script
 source("helper.R")
 
@@ -42,6 +46,8 @@ shinyServer(function(input, output, session) {
   scenariotable <- reactiveValues(values = NULL)
   #Create a reactive object to store scenario validation results
   validscenarios <- reactiveValues(valid = "", invalid = "")
+  #Create a reactive object to store a list of scenarios that have been run
+  runscenarios <- reactiveValues(Sc = NULL)
 
   
   #-----------------------------------------------------
@@ -123,6 +129,24 @@ shinyServer(function(input, output, session) {
     updateTextInput(session, "conceptValuesDescription",
                     value = scenariotable$values$description[RowNum])
   }
+  #Function to clear reactive data when when changing model
+  resetModel <- function(){
+    history$status = NULL
+    history$concepts = NULL
+    history$relations = NULL
+    conceptstable$concepts = NULL
+    effects$variable <- ""
+    effects$name <- ""
+    effects$direction <- ""
+    effects$strength <- ""
+    effects$description <- ""
+    scenario$status <- NULL
+    scenario$values <- NULL
+    scenario$history <- NULL
+    scenariotable$values <- NULL
+    validscenarios$valid <- ""
+    validscenarios$invalid <- ""
+  }
 
 
   #--------------------------------------
@@ -151,11 +175,14 @@ shinyServer(function(input, output, session) {
                       content = "Model name is missing. Enter a name.")
           return()
         }
+        resetModel()
         model$status <- initializeNewModel(input$modelName)
         model$concepts <- loadModelConcepts(input$modelName)
-        model$relations <- list() #loadModelRelations(input$modelName)
+        model$relations <- list()
         updateConceptsTable()
+        updateConceptForm(1)
         saveLastState()
+        runscenarios$Sc <- idScenWithOutputs(model$status$name)
       }
       if (input$modelAction == "copyModel") {
         if (input$modelName == "") {
@@ -164,18 +191,24 @@ shinyServer(function(input, output, session) {
                       content = "Model name is missing. Enter a name.")
           return()
         }
+        resetModel()
         model$status <- initializeCopyModel(input$modelName, input$modelFileName, input$copyScenarios)
         model$concepts <- loadModelConcepts(input$modelName)
         model$relations <- loadModelRelations(input$modelName)
         updateConceptsTable()
+        updateConceptForm(1)
         saveLastState()
+        runscenarios$Sc <- idScenWithOutputs(model$status$name)
       }
       if (input$modelAction == "editModel") {
+        resetModel()
         model$status <- loadModelStatus(input$modelFileName)
         model$concepts <- loadModelConcepts(input$modelFileName)
         model$relations <- loadModelRelations(input$modelFileName)
         updateConceptsTable()
+        updateConceptForm(1)
         saveLastState()
+        runscenarios$Sc <- idScenWithOutputs(model$status$name)
       }
     }
   )
@@ -483,10 +516,23 @@ shinyServer(function(input, output, session) {
     text(6, Map$YVals2, labels = Map$Labels2, pos = 4)
     text(2, Map$TitlePosY, labels = "Cause", pos = 2, cex = 1.5)
     text(6, Map$TitlePosY, labels = "Effect", pos = 4, cex = 1.5)
-    arrows(Map$X0, Map$Y0, Map$X1, Map$Y1, col = Map$Col, lwd = Map$Lwd, length = 0.1)
+    arrows(Map$X0, Map$Y0, Map$X1, Map$Y1, col = Map$Col, lwd = Map$Lwd, lty = Map$Lty, length = 0)
   }, 
   width = 800, height = 700)
-  
+  #Implement relations graph
+  output$relations_graph <- renderGrViz({
+    Dot_ <- 
+      makeDot(Relations_ls = model$relations, 
+              Concepts_df = model$concepts,
+              RowGroup = input$causalGroup,
+              ColGroup = input$affectedGroup,
+              orientation = input$graphOrientation,
+              rankdir = input$graphLayout,
+              shape = input$nodeShape,
+              Show = input$edgeLabel)
+    grViz(Dot_)
+  })
+
     
   #-----------------------------------------
   #IMPLEMENT INTERFACE FOR CHOOSING SCENARIO
@@ -630,6 +676,7 @@ shinyServer(function(input, output, session) {
       ScenarioValidation_ls <- listScenarios(model$status$name)
       validscenarios$valid <- ScenarioValidation_ls$Valid
       validscenarios$invalid <- ScenarioValidation_ls$Invalid
+      runscenarios$Sc <- idScenWithOutputs(model$status$name)
     }
   )
   #Define checkbox GUI element to select valid scenarios from list
@@ -686,98 +733,80 @@ shinyServer(function(input, output, session) {
   #------------------------------------------
   #IMPLEMENT INTERFACE FOR DISPLAYING RESULTS
   #------------------------------------------
+  #Implement action button to update list of scenarios that have been run
+  observeEvent(
+    input$listRunScenarios,
+    {
+      runscenarios$Sc <- idScenWithOutputs(model$status$name)
+    }
+  )
   #Define GUI element to select scenario 1 from a list
   output$selectScenarioPlot1 <- renderUI({
-    ScenarioValidation_ls <- listScenarios(model$status$name)
-    validscenarios$valid <- ScenarioValidation_ls$Valid
+    Sc <- runscenarios$Sc
     selectInput(
       inputId = "scenarioPlot1",
       label = "Select Scenario 1",
-      choices = validscenarios$valid
+      choices = Sc
     )
   })
   #Define GUI element to select scenario 2 from a list
   output$selectScenarioPlot2 <- renderUI({
-    ScenarioValidation_ls <- listScenarios(model$status$name)
-    validscenarios$valid <- ScenarioValidation_ls$Valid
+    Sc <- runscenarios$Sc
     selectInput(
       inputId = "scenarioPlot2",
       label = "Select Scenario 2",
-      choices = c("None", validscenarios$valid)
+      choices = Sc
     )
   })
   #Define checkbox GUI element to select variables to plot
   output$selectVarsToPlot <- renderUI({
-    FilePath <- file.path("../models", model$status$name, "scenarios", input$scenarioPlot1, "Outputs_ls.RData")
-    Summary_mx <- assignLoad(FilePath)$Summary
     checkboxGroupInput(
       inputId = "variablesToPlot",
       label = "Check Variables to Plot",
-      choices = colnames(Summary_mx)
+      choices = sort(model$concepts$variable)
     )
   })
   #Implement results plots
   output$resultsPlot <- renderPlot({
-    ScenPath <- file.path("../models", model$status$name, "scenarios")
-    Data1Path <- file.path(ScenPath, input$scenarioPlot1, "Outputs_ls.RData")
-    Summary1_mx <- assignLoad(Data1Path)$Summary
-    DoOnlyOne <- input$scenarioPlot2 == "None"
-    if (DoOnlyOne) {
-      if (length(input$variablesToPlot != 0)) {
-        Data1_mx <- Summary1_mx[,input$variablesToPlot]
-        layout(
-          matrix(1:2, ncol = 2),
-          widths = c(4,1)
-        )
-        par(mar = c(5,4,4,0.5))
-        matplot(Data1_mx,
-                type = "l", xlab = "Iteration",
-                ylab = "Percentage of Maximum", main = input$scenarioPlot1,
-                cex.main = 1.5)
-        par(mar = c(5,0,4,0))
-        plot(0, 0, type = "n", axes = FALSE, xlab = "", ylab = "",
-             main = "Legend")
-        legend("topleft", col = 1:length(input$variablesToPlot),
-               lty = 1:length(input$variablesToPlot), bty = "n",
-               legend = input$variablesToPlot)
-      }
-    } else {
-      Data2Path <- file.path(ScenPath, input$scenarioPlot2, "Outputs_ls.RData")
-      Summary2_mx <- assignLoad(Data2Path)$Summary
-      if (length(input$variablesToPlot != 0)) {
-        Data1_mx <- Summary1_mx[,input$variablesToPlot]
-        Data2_mx <- Summary2_mx[,input$variablesToPlot]
-        YLim_ <- range(c(range(Data1_mx), range(Data2_mx)))
-        layout(
-          matrix(1:3, ncol = 3),
-          widths = c(3.3,3,1)
-        )
-        par(mar = c(5,4,4,0))
-        matplot(Data1_mx, type = "l", xlab = "Iteration",
-                ylab = "Percentage of Maximum", ylim = YLim_, 
-                main = input$scenarioPlot1, cex.main = 1.5)
-        par(mar = c(5,0.5,4,0))
-        matplot(Data2_mx, type = "l", xlab = "Iteration",
-                ylab = "Percentage of Maximum", ylim = YLim_, 
-                main = input$scenarioPlot2, cex.main = 1.5,
-                axes = FALSE)
-        box()
-        axis(1)
-        par(mar = c(5,0,4,0))
-        plot(0, 0, type = "n", axes = FALSE, xlab = "", ylab = "",
-             main = "Legend")
-        legend("topleft", col = 1:length(input$variablesToPlot),
-               lty = 1:length(input$variablesToPlot), bty = "n",
-               legend = input$variablesToPlot)
-      }
+    Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
+    Vn <- input$variablesToPlot
+    if (length(Vn) >= 2) {
+      PlotData_df <- formatOutputData(model$status$name, Sc, Vn)
+      ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
+        geom_line() +
+        facet_wrap(~Scenario)      
+    } 
+  })
+  #Implement saving data
+  observeEvent(
+    input$saveResults,
+    {
+      Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
+      Vn <- input$variablesToPlot
+      if (length(Vn) >= 2) {
+        PlotData_df <- formatOutputData(model$status$name, Sc, Vn)
+        Plot <- ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
+          geom_line() +
+          facet_wrap(~Scenario)
+        if (input$analysisSaveName == "") {
+          createAlert(session = session, anchorId = "noAnalysisNameAlert", 
+                      title = "Missing Name", 
+                      content = "Analysis save name is missing. Enter a name.")
+          return()
+        } else {
+          AnalysisPath <- 
+            file.path("../models", model$status$name, "analysis", input$analysisSaveName)
+          if (!dir.exists(AnalysisPath)) {
+            dir.create(AnalysisPath)
+          }
+          ggsave(file.path(AnalysisPath, "plot.png"), plot = Plot, device = "png")
+          write.csv(PlotData_df, file = file.path(AnalysisPath, "data.csv"), row.names = FALSE)
+        }        
+      } 
     }
-  }, 
-  width = 800, height = 700)  
-  
-
+  )
   
   
 
-  
   
 })

@@ -1,5 +1,7 @@
 #ui.R
 #Author: Brian Gregor, Oregon Systems Analytics LLC
+#Copyright: Oregon Department of Transportation 2016
+#License: Apache 2
 
 
 #LOAD RESOURCES
@@ -8,6 +10,8 @@
 library(shiny)
 library(shinyBS)
 library(DT)
+library(ggplot2)
+library(DiagrammeR)
 #Function to support text area inputs
 textareaInput <- function(id, label, value="", rows=5, cols=40, class="form-control"){
   tags$div(
@@ -28,8 +32,8 @@ shinyUI(
     tabPanel(
       "Introduction",
       fluidPage(
-        titlePanel("Introduction"),
-        hr(),
+        titlePanel(span("Introduction", img(src="OSA_Logo2.png", height=50, width=75, align="right"))),
+        br(),
         h3("What is the FSDM Modeler", style = "color: blue"),
         p("The FSDM Modeler is an application for building and running fuzzy systems dynamics models (FSDM). FSDMs are variants of fuzzy cognitive maps (FCM). A FSDM is represented as a directed graph whose ", strong("nodes are concepts"), " that are being modeled and whose ", strong("edges specify relationships between concepts"), ". The following figure illustrates a simple FSDM."),
         img(src = "simple_fsdm.png", height = 200, width = 275, style = "display: block; margin-left: auto; margin-right: auto"),
@@ -119,31 +123,59 @@ shinyUI(
                 tabPanel( "Edit Relations",
                           sidebarLayout(
                             sidebarPanel(
-                              h4("Edit Relations"),
-                              hr(),
-                              uiOutput("selectCausalGroup"),
-                              uiOutput("selectAffectedGroup"),
-                              uiOutput("selectCausalConcept"),
-                              uiOutput("selectAffectedConcept"),
-                              selectInput(inputId = "causalDirection", 
-                                          label = "Causal Direction", 
-                                          choices = c("" ,"Positive", "Negative")),
-                              selectInput(inputId = "causalStrength", 
-                                          label = "Causal Strength", 
-                                          choices = c("", "VL", "L", "ML", "M", "MH", "H", "VH")),
-                              textareaInput("causalDesc", "Causal Description"),
-                              actionButton("updateRelation", "Update"),
-                              actionButton("deleteRelation", "Delete"),
-                              actionButton("undoRelationAction", "Undo")
+                            tabsetPanel(
+                              tabPanel(
+                                title = "Edit Relations",
+                                br(),
+                                uiOutput("selectCausalGroup"),
+                                uiOutput("selectAffectedGroup"),
+                                uiOutput("selectCausalConcept"),
+                                uiOutput("selectAffectedConcept"),
+                                selectInput(inputId = "causalDirection", 
+                                            label = "Causal Direction", 
+                                            choices = c("" ,"Positive", "Negative")),
+                                selectInput(inputId = "causalStrength", 
+                                            label = "Causal Strength", 
+                                            choices = c("", "VL", "L", "ML", "M", "MH", "H", "VH")),
+                                textareaInput("causalDesc", "Causal Description"),
+                                actionButton("updateRelation", "Update"),
+                                actionButton("deleteRelation", "Delete"),
+                                actionButton("undoRelationAction", "Undo")                                
+                              ),
+                              tabPanel(
+                                title = "Relations Graph Format",
+                                br(),
+                                selectInput(inputId = "graphOrientation",
+                                            label =  "Graph Orientation",
+                                            choices = c("Landscape", "Portrait"),
+                                            selected = "Portrait"),
+                                selectInput(inputId = "graphLayout",
+                                            label = "Graph Layout",
+                                            choices = c("Left-to-Right", "Top-to-Bottom"),
+                                            selected = "Top-to-Bottom"),
+                                selectInput(inputId = "nodeShape",
+                                            label = "Node Shape",
+                                            choices = c("box", "oval", "circle"),
+                                            selected = "box"),
+                                selectInput(inputId = "edgeLabel",
+                                            label = "Edge Label",
+                                            choices = c("label", "value"),
+                                            selected = "Level"),
+                                actionButton(inputId = "saveRelationsGraph",
+                                             label = "Save Graph")
+                              )
+                            )
+
                             ),
                             mainPanel(
                               tabsetPanel(
                                 tabPanel(
-                                  title = "Relations Map",
-                                  plotOutput("relations_map")
+                                  title = "Relations Graph",
+                                  grVizOutput('relations_graph', width = "100%", height = "800px")
                                 ),
                                 tabPanel(
-                                  title = "Relations Graph"
+                                  title = "Relations Map",
+                                  plotOutput("relations_map")
                                 )
                               )
                             )
@@ -204,7 +236,7 @@ shinyUI(
               actionButton("updateScenario", "Update"),
               actionButton("undoScenarioAction", "Undo"),
               actionButton("validateScenario", "Validate"),
-              actionButton("saveScenario", "Save")
+              actionButton("saveScenario", "Save Scenario")
             )
           )
         ),
@@ -257,9 +289,17 @@ shinyUI(
       titlePanel("Analyze Results"),
       sidebarLayout(
         sidebarPanel(
+          actionButton("listRunScenarios", "Update Scenario Selection Set"),
+          hr(),
           uiOutput("selectScenarioPlot1"),          
           uiOutput("selectScenarioPlot2"),
-          uiOutput("selectVarsToPlot")
+          uiOutput("selectVarsToPlot"),
+          hr(),
+          actionButton("saveResults", "Save Results"),
+          textInput("analysisSaveName", "Analysis Save Name", ""),
+          bsAlert(
+            "noAnalysisNameAlert"
+          )          
         ),
         mainPanel(
           plotOutput("resultsPlot")

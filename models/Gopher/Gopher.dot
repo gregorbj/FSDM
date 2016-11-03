@@ -1,0 +1,18 @@
+digraph {
+ orientation = Portrait ;
+ rankdir = TB ;
+ Herbicide [ shape = box ];
+ Weeds [ shape = box ];
+ Repair [ shape = box ];
+ Damage [ shape = box ];
+ Gophers [ shape = box ];
+ Trap [ shape = box ];
+Herbicide -> Weeds[ color=red, fontcolor=red, style=dashed, label=M ];
+Weeds -> Gophers[ label=H ];
+Repair -> Damage[ color=red, fontcolor=red, style=dashed, label=H ];
+Repair -> Gophers[ color=red, fontcolor=red, style=dashed, label=ML ];
+Damage -> Weeds[ label=H ];
+Gophers -> Damage[ label=H ];
+Trap -> Damage[ label=L ];
+Trap -> Gophers[ color=red, fontcolor=red, style=dashed, label=MH ];
+ }
