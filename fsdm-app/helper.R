@@ -1,6 +1,6 @@
 #helper.R
 #Author: Brian Gregor, Oregon Systems Analytics LLC
-#Copyright: Oregon Department of Transportation 2016
+#Copyright: 2016, Oregon Department of Transportation 2016
 #License: Apache 2
 
 
@@ -28,15 +28,19 @@
 #' @param ModelName a string representation of the model name.
 #' @return a list containing values for name, parent, created, and lastedit.
 #' @export
-initializeNewModel <- function(ModelName) {
+initializeNewModel <- function(ModelName, Author) {
   #Create directory for model
   NewDir <- file.path("../models", ModelName)
   dir.create(NewDir)
   #Create and save a status list
+  Attribution <- 
+    paste0("Model: ", ModelName, "   Author: ", Author, "   Created: ", as.character(Sys.time()))
   status_ls <- list(name = ModelName,
                     parent = "none",
                     created = as.character(Sys.time()),
-                    lastedit = as.character(Sys.time()))
+                    lastedit = as.character(Sys.time()),
+                    attribution = Attribution,
+                    notes = character(0))
   writeLines(toJSON(status_ls), file.path(NewDir, "status.json"))
   #Copy and save the concept and relations template files
   CopyDir <- "../models/templates"
@@ -81,7 +85,7 @@ initializeNewModel <- function(ModelName) {
 #' scenarios.
 #' @return a list containing values for name, parent, created, and lastedit.
 #' @export
-initializeCopyModel <- function(ModelName, CopyModelName, CopyScenarios = FALSE) {
+initializeCopyModel <- function(ModelName, CopyModelName, Author, CopyScenarios = FALSE) {
   NewDir <- file.path("../models", ModelName)
   dir.create(NewDir)
   CopyDir <- file.path("../models", CopyModelName)
@@ -90,6 +94,13 @@ initializeCopyModel <- function(ModelName, CopyModelName, CopyScenarios = FALSE)
       CopyDir, c("status.json", "concepts.json", "relations.json", "scenarios")
     )
     file.copy(FilesToCopy_, NewDir, recursive = TRUE)
+    Sc <- dir(file.path(NewDir, "scenarios"))
+    for (sc in Sc) {
+      ScenDir <- file.path(NewDir, "scenarios", sc)
+      status_ls <- fromJSON(paste0(ScenDir, "/status.json"))
+      status_ls$model <- ModelName
+      writeLines(toJSON(status_ls), file.path(ScenDir, "status.json"))
+    }
   } else {
     FilesToCopy_ <- file.path(
       CopyDir, c("status.json", "concepts.json", "relations.json")
@@ -106,10 +117,16 @@ initializeCopyModel <- function(ModelName, CopyModelName, CopyScenarios = FALSE)
   if (!dir.exists(AnalysisPath)) {
     dir.create(AnalysisPath)
   }
-  status_ls <- list(name = ModelName,
-                    parent = CopyModelName,
-                    created = as.character(Sys.time()),
-                    lastedit = as.character(Sys.time()))
+  #Copy and edit the model status file
+  status_ls <- as.list(fromJSON(file.path(NewDir, "status.json")))
+  Attribution <- 
+    paste0("Model: ", ModelName, "   Author: ", Author, "   Copy Created: ", as.character(Sys.time()))
+  status_ls$name <- ModelName
+  status_ls$parent <- CopyModelName
+  status_ls$created <- as.character(Sys.time())
+  status_ls$lastedit <- as.character(Sys.time())
+  status_ls$attribution <- c(Attribution, status_ls$attribution)
+  status_ls$notes <- status_ls$notes
   writeLines(toJSON(status_ls), file.path(NewDir, "status.json"))
   status_ls
 }
@@ -128,9 +145,16 @@ initializeCopyModel <- function(ModelName, CopyModelName, CopyScenarios = FALSE)
 #' @param ModelName a string representation of the model name.
 #' @return a list containing values for name, parent, created, and lastedit.
 #' @export
-loadModelStatus <- function(ModelName){
+loadModelStatus <- function(ModelName, Author = NULL){
   ModelDir <-  file.path("../models", ModelName)
-  as.list(fromJSON(file.path(ModelDir, "status.json")))
+  status_ls <- as.list(fromJSON(file.path(ModelDir, "status.json")))
+  if (!is.null(Author)) {
+    Attribution <- 
+      paste0("Model: ", ModelName, "   Author: ", Author, "   Edited: ", as.character(Sys.time()))
+    status_ls$attribution <- c(Attribution, status_ls$attribution)
+    status_ls$notes <- status_ls$notes
+  }
+  status_ls
 }
 
 #------------------------
@@ -335,7 +359,8 @@ getEffects <- function(Model_ls, ConceptName) {
       Nn[match(Vars_, Nv)]
     }
   #Extract the effects portion of the relations list for the concept
-  VarName <- nameToVar(ConceptName)
+  VarName <- ConceptName
+  #VarName <- nameToVar(ConceptName)
   VarNames_ <- unlist(lapply(Model_ls$relations, function(x) x$name))
   Idx <- which(VarNames_ == VarName)
   SelectEffects_ls <- Model_ls$relations[[Idx]]$affects
@@ -434,9 +459,9 @@ mapRelations <-
         Nn[match(Vars_, Nv)]
       }
     #Check whether function arguments are proper
-    if (!is.null(FromConcept)) {
-      FromConcept <- nameToVar(FromConcept)
-    }
+    # if (!is.null(FromConcept)) {
+    #   FromConcept <- nameToVar(FromConcept)
+    # }
     #Make a matrix of relations
     Relations_mx <- makeAdjacencyMatrix(Model_ls$relations, Type = "Values")$Direction[Nv,Nv]
     #Function to select portion of matrix and return a matrix regardless of how
@@ -580,7 +605,7 @@ makeDot <-
     Relates_ls <- makeAdjacencyMatrix(Relations_ls, Type = "Values")
     Cn <- Concepts_df$variable
     Vals <- c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675,
-             H = 0.75, VH = 0.99)
+             H = 0.75, VH = 0.95)
     Signs <- c(Positive = 1, Negative = -1)    
     Relates.CnCn <- 
       apply(Relates_ls$Weight[Cn,Cn], 2, function(x) Vals[x]) *
@@ -601,15 +626,15 @@ makeDot <-
     #Select relations and labels matrices for selected rows and columns
     Relates.CrCc <- Relates.CnCn[Cr,Cc]
     Labels.CrCc <- Labels.CnCn[Cr,Cc]
+    Concepts. <- unique(Cr)
     #Remove rows and columns that are all NA values
-    AllNARows_ <- apply(Relates.CrCc, 1, function(x) all(is.na(x)))
-    AllNACols_ <- apply(Relates.CrCc, 2, function(x) all(is.na(x)))
-    Relates.CrCc <- Relates.CrCc[!AllNARows_, !AllNACols_]
-    Labels.CrCc <- Labels.CrCc[!AllNARows_, !AllNACols_]
+    # AllNARows_ <- apply(Relates.CrCc, 1, function(x) all(is.na(x)))
+    # AllNACols_ <- apply(Relates.CrCc, 2, function(x) all(is.na(x)))
+    # Relates.CrCc <- Relates.CrCc[!AllNARows_, !AllNACols_]
+    # Labels.CrCc <- Labels.CrCc[!AllNARows_, !AllNACols_]
     #Update Cr and Cc and identify unique concepts
     Cr <- rownames(Relates.CrCc)
     Cc <- colnames(Relates.CrCc)
-    Concepts. <- unique(c(Cr,Cc))
     #Convert rankdir argument
     if (rankdir == "Top-to-Bottom") rankdir <- "TB"
     if (rankdir == "Left-to-Right") rankdir <- "LR"
@@ -701,6 +726,58 @@ initializeNewScenario <- function(ModelName, ScenarioName, Concepts_df) {
        values = values_df)
 }
 
+
+#---------------------------------------------------------
+#Modify an Existing Scenario to Conform with Model Changes
+#---------------------------------------------------------
+#' Modify a scenario to conform with a changed model
+#' 
+#' \code{conformScenario} modifies an existing scenario definition so that it
+#' conforms to the current model definition.
+#' 
+#' This function modifies a scenario definition so that it conforms to the
+#' the current model definition. It does this my removing entries for concepts
+#' that are not part of the model and by adding "blank" entries for concepts
+#' that are in the model but not in the scenario. The function is designed to be
+#' called by the 'initializeCopyScenario' function and the 'loadScenario'
+#' function. Note that the function does not check whether the values for 
+#' concepts are consistent with the concept definition. The user needs to check
+#' consistency of values and validation will check for inconsistencies as well.
+#' 
+#' @param ConceptVars_ a string vector of the variable names of model concepts
+#' @param ScenarioValues_df a data frame of scenario concept values
+#' @return a data frame of scenario concept values that is consistent with the
+#' model concepts
+#' @export
+conformScenario <- function(ConceptVars_, ScenarioValues_df){
+  #Identify scenario concepts in model
+  IsConceptInModel <- ScenarioValues_df$name %in% ConceptVars_
+  #Identify model concepts not in scenario
+  MissingConcepts_ <- 
+    ConceptVars_[!(ConceptVars_ %in% ScenarioValues_df$name)]
+  #If any concepts are missing from the scenario, add blank entries
+  if (length(MissingConcepts_) != 0) {
+    AddValues_df <- 
+      data.frame(
+        name = MissingConcepts_,
+        startvalue = rep("NA", length(MissingConcepts_)),
+        startchange = rep("NA", length(MissingConcepts_)),
+        description = rep("", length(MissingConcepts_)),
+        stringsAsFactors = FALSE
+      )
+    Result_df <- 
+      rbind(
+        ScenarioValues_df[IsConceptInModel,], 
+        AddValues_df
+        )
+  } else {
+    Result_df <- ScenarioValues_df[IsConceptInModel,]
+  }
+  #Return the modified scenario data frame
+  Result_df
+}
+
+
 #---------------------------------------------------------
 #Initialize a New Scenario by Copying an Existing Scenario
 #---------------------------------------------------------
@@ -717,21 +794,23 @@ initializeNewScenario <- function(ModelName, ScenarioName, Concepts_df) {
 #' scenario and the name of the parent scenario it is a copy of.
 #'
 #' @param ModelName a string representation of the model name.
+#' @param ConceptVars_ a string vector of the model concept variable names.
 #' @param ScenarioName a string representation of the new scenario name.
 #' @param CopyScenarioName a string representation of the name of the scenario
 #' to copy.
 #' @return a list containing a status list and a scenario values data frame.
 #' @export
-initializeCopyScenario <- function(ModelName, ScenarioName, CopyScenarioName) {
+initializeCopyScenario <- 
+  function(ModelName, ConceptVars_, ScenarioName, CopyScenarioName) {
   #Create directory for scenario
-  NewDir <- paste0("../models/", ModelName, "/scenarios/", ScenarioName)
+  NewDir <- file.path("../models", ModelName, "scenarios", ScenarioName)
   dir.create(NewDir)
-  #Copy the scenario file
-  FileToCopy <- 
-    paste0("../models/", ModelName, "/scenarios/", CopyScenarioName, "/scenario.json")
-  file.copy(FileToCopy, NewDir)
-  #Load the scenario file
-  values_df <- fromJSON(file.path(NewDir, "scenario.json")) 
+  #Load the scenario values file to be copied and make conform to model
+  CopyFromDir <- file.path("../models", ModelName, "scenarios", CopyScenarioName)
+  CopyValues_df <- fromJSON(file.path(CopyFromDir, "scenario.json"))
+  values_df <- conformScenario(ConceptVars_, CopyValues_df)
+  #Save the scenario values
+  writeLines(toJSON(values_df), file.path(NewDir, "scenario.json"))
   #Create and save the status list
   status_ls <- list(name = ScenarioName,
                     model = ModelName,
@@ -760,13 +839,19 @@ initializeCopyScenario <- function(ModelName, ScenarioName, CopyScenarioName) {
 #' values information.
 #'
 #' @param ModelName a string representation of the model name.
+#' @param ConceptVars_ a string vector of the model concept variable names.
 #' @param ScenarioName a string representation of the scenario name.
 #' @return a list containing a status list and a scenario values data frame.
 #' @export
-loadScenario <- function(ModelName, ScenarioFileName){
+loadScenario <- function(ModelName, ConceptVars_, ScenarioFileName){
+  #Identify the scenario directory
   Dir <- paste0("../models/", ModelName, "/scenarios/", ScenarioFileName)
-  values_df <- fromJSON(paste0(Dir, "/scenario.json"))
+  #Load the scenario values file to be copied and make conform to model
+  CopyValues_df <- fromJSON(file.path(Dir, "scenario.json"))
+  values_df <- conformScenario(ConceptVars_, CopyValues_df)
+  #Load the scenario status
   status_ls <- fromJSON(paste0(Dir, "/status.json"))
+  #Return list of the scenario status and values
   list(status = status_ls,
        values = values_df)
 }
@@ -899,29 +984,46 @@ validateScenario <- function(Values_df, Concepts_df) {
 #' after validation was done.
 #' 
 #' @param ModelName the name of the model
-#' @return a list having two components, a vector of the names of scenarios 
+#' @return a list having four components, a vector of the names of scenarios 
 #' that were properly validated, a vector of the names of scenarios that were
-#' not validated.
+#' not validated, a vector of the names of all scenarios, and a vector
+#' of the names of scenarios that have outputs.
 #' @export
 listScenarios <- function(ModelName) {
   ScenariosDir <- file.path("../models", ModelName, "scenarios")
   Sc <- dir(ScenariosDir)
-  ModelEdited <- loadModelStatus(ModelName)$lastedit
-  Results_mx <- sapply(Sc, function(x) {
-    ScenDir <- file.path(ScenariosDir, x)
-    ScenValidated <- fromJSON(file.path(ScenDir, "status.json"))$validated
-    ScenEdited <- fromJSON(file.path(ScenDir, "status.json"))$lastedit
-    c(
-      Validated = ScenValidated != "",
-      AfterModelEdited = ScenValidated > ModelEdited,
-      AfterScenarioEdited = ScenValidated > ScenEdited
-    )
-  })
-  Valid_Sc <- apply(Results_mx, 2, all)
-  list(Valid = names(Valid_Sc)[Valid_Sc],
-       Invalid = names(Valid_Sc)[!Valid_Sc])
+  if (length(Sc) == 0) {
+    return(list(
+      Valid = "",
+      Invalid = "",
+      All = "",
+      Run = ""
+    ))
+  } else {
+    ModelEdited <- loadModelStatus(ModelName)$lastedit
+    Validation_mx <- sapply(Sc, function(x) {
+      ScenDir <- file.path(ScenariosDir, x)
+      ScenValidated <- fromJSON(file.path(ScenDir, "status.json"))$validated
+      ScenEdited <- fromJSON(file.path(ScenDir, "status.json"))$lastedit
+      c(
+        Validated = ScenValidated != "",
+        AfterModelEdited = ScenValidated > ModelEdited,
+        AfterScenarioEdited = ScenValidated > ScenEdited
+      )
+    })
+    HasOutputs_ <- names(sapply(Sc, function(x) {
+      file.exists(file.path(ScenariosDir, x, "Outputs_ls.RData"))
+    }))
+    Valid_Sc <- apply(Validation_mx, 2, all)
+    return(list(
+      Valid = names(Valid_Sc)[Valid_Sc],
+      Invalid = names(Valid_Sc)[!Valid_Sc],
+      All = Sc,
+      Run = HasOutputs_
+    ))
+  }
 }
-  
+
   
 ###############################################
 #---------------------------------------------#
@@ -953,9 +1055,11 @@ listScenarios <- function(ModelName) {
 #'   increases from 0 to 100.
 #' @return a numeric value in the range of 0 to 1.
 #' @export
-powIncr <- function(x, Pow) {
-  1 - ((100 - x) / 100)^Pow
+powIncr <- function(x, Pow, OpRange) {
+  sx <- rescale(x, OpRange, c(1,100))
+  1 - ((100 - sx) / 100)^Pow
 }
+
 
 #-------------------------------
 #Calculate Receiving Sensitivity
@@ -980,9 +1084,13 @@ powIncr <- function(x, Pow) {
 #' relationship. Higher values increase the rate of decline.
 #' @return a numeric value in the range of 0 to 1.
 #' @export
-powDecr <- function(x, Pow) {
-  1 - (x / 100)^Pow
+powDecr <- function(x, Pow, OpRange) {
+  sx <- rescale(x, OpRange, c(1,100))
+  Result <- 1 / (1 - ((100 - sx) / 100)^Pow)
+  Result[sx > 50] <- 1 - (sx[sx > 50] / 100)^Pow
+  Result
 }
+
 
 #--------------------------------------------------------
 #Rescaling a Value from an Input Range to an Output Range
@@ -1006,7 +1114,7 @@ powDecr <- function(x, Pow) {
 #' range.
 #' @return A numeric value in the output range.
 #' @export
-rescale <- function(Value, FromRange, ToRange=c(0,100)) {
+rescale <- function(Value, FromRange, ToRange) {
   ToRange[1] + diff(ToRange) * (Value - FromRange[1]) / diff(FromRange)
 }
 
@@ -1037,11 +1145,12 @@ rescale <- function(Value, FromRange, ToRange=c(0,100)) {
 #' ValueRange = a data frame which provides the minimum and maximum values of
 #' each concept.
 #' @export
-"models/Futures"
+# Vals = c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675, H = 0.75, VH = 1),
+# Vals = c(VL = 0.125, L = 0.25, ML = 0.5, M = 0.75, MH = 1, H = 1.25, VH = 1.5),
+
 createFuzzyModel <- 
   function(Dir,
-           Vals = c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675,
-                    H = 0.75, VH = 0.99),
+           Vals = c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675, H = 0.75, VH = 0.95),
            Signs = c(Positive = 1, Negative = -1)
            ) 
     {
@@ -1095,7 +1204,7 @@ createFuzzyModel <-
 #' ChangeTo a numeric vector of concept starting changes scaled to the range
 #' of 0 to 100 and in the order of Cn.
 #' @export
-createFuzzyScenario <- function(Dir, M) {
+createFuzzyScenario <- function(Dir, M, OpRange) {
   #Load table of starting concept values, check values, and create vectors for each
   Values_df <- fromJSON(file.path(Dir, "scenario.json"))
   rownames(Values_df) <- Values_df$name
@@ -1112,9 +1221,9 @@ createFuzzyScenario <- function(Dir, M) {
     StartVal <- Values_df[cn, "startvalue"]
     MinVal <- as.numeric(ValRng_df[cn,"min"])
     MaxVal <- as.numeric(ValRng_df[cn,"max"])
-    StartValues_Cn[cn] <- rescale(StartVal, c(MinVal, MaxVal) )
+    StartValues_Cn[cn] <- rescale(StartVal, c(MinVal, MaxVal), OpRange )
   }
-  StartValues_Cn[StartValues_Cn == 0] <- 0.1
+  #StartValues_Cn[StartValues_Cn == 0] <- 0.1
   #Record the change to targets
   ChangeTo_Cn <- numeric(length(M$Cn))
   names(ChangeTo_Cn) <- M$Cn
@@ -1123,7 +1232,7 @@ createFuzzyScenario <- function(Dir, M) {
       ChangeVal <- Values_df[cn, "startchange"]
       MinVal <- as.numeric(ValRng_df[cn,"min"])
       MaxVal <- as.numeric(ValRng_df[cn,"max"])
-      ChangeTo_Cn[cn] <- rescale(ChangeVal, c(MinVal, MaxVal) )
+      ChangeTo_Cn[cn] <- rescale(ChangeVal, c(MinVal, MaxVal), OpRange )
     } else {
       ChangeTo_Cn[cn] <- NA
     }
@@ -1159,9 +1268,9 @@ createFuzzyScenario <- function(Dir, M) {
 #' @return a numeric vector containing the initial percentage change to each
 #' concept.
 #' @export
-calcInitEffects <- function(Levels_Cn, LevelChg_Cn, M, Pow) {
+calcInitEffects <- function(Levels_Cn, LevelChg_Cn, M, Pow, OpRange) {
   # Calculate sensitivity of each concept to cause change
-  CausalSens_Cn <- powIncr(Levels_Cn, Pow = Pow)
+  CausalSens_Cn <- powIncr(Levels_Cn, Pow = Pow, OpRange = OpRange)
   # Adjust the weights by the causal sensitivity
   CausalWts_CnCn <- sweep(M$Relates, 1, CausalSens_Cn, "*")
   # Convert percentage change into proportions
@@ -1193,12 +1302,17 @@ calcInitEffects <- function(Levels_Cn, LevelChg_Cn, M, Pow) {
 #' sensitivity function.
 #' @return a numeric vector containing the percentage change to each concept.
 #' @export
-adjustResponse <- function(InputChg_Cn, Levels_Cn, Pow){
+adjustResponse <- function(InputChg_Cn, Levels_Cn, Pow, OpRange){
   # Calculate the sensitivity of each concept to be changed
-  ReceiveSens_Cn <- powDecr(Levels_Cn, Pow = Pow)
+  ReceiveSens_Cn <- powDecr(Levels_Cn, Pow = Pow, OpRange = OpRange)
   # Calculate the adjusted input change
   InputChg_Cn * ReceiveSens_Cn
 }
+# 
+# InputChg_Cn <- InitEffect_Cn
+# 
+# 
+# adjustResponse(InitEffect_Cn, Levels_Cn, Pow, OpRange)
 
 #--------------------------------
 #Update the level of each concept
@@ -1218,11 +1332,11 @@ adjustResponse <- function(InputChg_Cn, Levels_Cn, Pow){
 #' @return a numeric vector of the level of each concept after it has been
 #' adjusted.
 #' @export
-adjustLevel <- function(InputChg_Cn, Level_Cn) {
+adjustLevel <- function(InputChg_Cn, Level_Cn, OpRange) {
   AdjLevel_Cn <- Level_Cn * (1 + InputChg_Cn / 100)
-  # Constrain to range of 0.001 to 100
-  AdjLevel_Cn[AdjLevel_Cn < 0] <- 0.001
-  AdjLevel_Cn[AdjLevel_Cn > 100] <- 100
+  # Constrain to the operating range
+  AdjLevel_Cn[AdjLevel_Cn < OpRange[1]] <- OpRange[1]
+  AdjLevel_Cn[AdjLevel_Cn > OpRange[2]] <- OpRange[2]
   # Return the result
   AdjLevel_Cn
 }
@@ -1258,7 +1372,7 @@ adjustLevel <- function(InputChg_Cn, Level_Cn) {
 #' Full - the relative concept values (e.g. 0 - 100) for each increment and
 #' each iteration.
 #' @export
-runFuzzyModel <- function(M, S, Pow = 10, NumIncr = 20, MaxIter=100){
+runFuzzyModel <- function(M, S, OpRange, Pow = 10, NumIncr = 100, MaxIter=100){
   #Iterate through number of increments to increase inputs
   Final_ <- list()
   ChangeTargets_Cn <- S$ChangeTo
@@ -1281,10 +1395,10 @@ runFuzzyModel <- function(M, S, Pow = 10, NumIncr = 20, MaxIter=100){
       } else {
         LevelChg_Cn <- 100 * (Levels_Cn - PrevLevels_Cn) / PrevLevels_Cn
         LevelChg_Cn[is.nan(LevelChg_Cn)] <- 0
-        InitEffect_Cn <- calcInitEffects(Levels_Cn, LevelChg_Cn, M, Pow)
-        AdjEffect_Cn <- adjustResponse(InitEffect_Cn, Levels_Cn, Pow)
+        InitEffect_Cn <- calcInitEffects(Levels_Cn, LevelChg_Cn, M, Pow, OpRange)
+        AdjEffect_Cn <- adjustResponse(InitEffect_Cn, Levels_Cn, Pow, OpRange)
         PrevLevels_Cn <- Levels_Cn
-        Levels_Cn <- adjustLevel(AdjEffect_Cn, Levels_Cn)
+        Levels_Cn <- adjustLevel(AdjEffect_Cn, Levels_Cn, OpRange)
         Results_[[i]] <- Levels_Cn
         # If absolute values of all of the adjusted effects are less than 0.01 then break out of the loop
         if( all( abs(AdjEffect_Cn) < 1 ) & i > 10 ) break
@@ -1320,12 +1434,14 @@ runFuzzyModel <- function(M, S, Pow = 10, NumIncr = 20, MaxIter=100){
   for (cn in M$Cn) {
     RescaleResults_ItCn[,cn] <-
       sapply(FinalResults_ItCn[,cn], function(x) {
-        rescale(x, c(0,100), unlist(M$ValueRange[cn,]))
+        rescale(x, OpRange, unlist(M$ValueRange[cn,]))
       })
   }
-  list(ScaledSummary = FinalResults_ItCn, 
-       RescaledSummary = RescaleResults_ItCn, 
-       ScaledFull = Final_)
+  list(
+    ScaledSummary = rescale(FinalResults_ItCn, OpRange, c(0,100)),
+    RescaledSummary = RescaleResults_ItCn,
+    ScaledFull = lapply(Final_, function(x) rescale(x, OpRange, c(0,100)))
+  )
 }
 
 
