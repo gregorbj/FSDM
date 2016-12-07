@@ -1056,8 +1056,11 @@ listScenarios <- function(ModelName) {
 #' @return a numeric value in the range of 0 to 1.
 #' @export
 powIncr <- function(x, Pow, OpRange) {
-  sx <- rescale(x, OpRange, c(1,100))
-  1 - ((100 - sx) / 100)^Pow
+  sx <- rescale(x, OpRange, c(1,99))
+  Result <- 1 - ((100 - sx) / 100)^Pow
+  #Result[sx > 50] <- 1 / (1 - (sx[sx > 50] / 100)^Pow)
+  #Result[is.infinite(Result)] <- 1 / (1 - (99 / 100)^Pow)
+  Result
 }
 
 
@@ -1085,7 +1088,7 @@ powIncr <- function(x, Pow, OpRange) {
 #' @return a numeric value in the range of 0 to 1.
 #' @export
 powDecr <- function(x, Pow, OpRange) {
-  sx <- rescale(x, OpRange, c(1,100))
+  sx <- rescale(x, OpRange, c(1,99))
   Result <- 1 / (1 - ((100 - sx) / 100)^Pow)
   Result[sx > 50] <- 1 - (sx[sx > 50] / 100)^Pow
   Result

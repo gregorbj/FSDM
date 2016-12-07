@@ -855,8 +855,8 @@ shinyServer(function(input, output, session) {
             ModelPath <- file.path("../models", model$status$name)
             ScenarioPath <- file.path(ModelPath, "scenarios", sc)
             Model_ls <- createFuzzyModel(ModelPath)
-            Scenario_ls <- createFuzzyScenario(ScenarioPath, Model_ls, OpRange = c(1,100))
-            Outputs_ls <- runFuzzyModel(Model_ls, Scenario_ls, OpRange = c(1,100), Pow = 10)
+            Scenario_ls <- createFuzzyScenario(ScenarioPath, Model_ls, OpRange = c(0.1,99.9))
+            Outputs_ls <- runFuzzyModel(Model_ls, Scenario_ls, OpRange = c(0.1,99.9), Pow = 10)
             save(Outputs_ls, file = file.path(ScenarioPath, "Outputs_ls.RData"))
             incProgress(1 / length(Sc))
           }          
