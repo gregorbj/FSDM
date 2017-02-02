@@ -12,6 +12,7 @@ library(shinyBS)
 library(jsonlite)
 library(DT)
 library(ggplot2)
+library(plotly)
 library(DiagrammeR)
 #Helper.R script
 source("helper.R")
@@ -767,14 +768,15 @@ shinyServer(function(input, output, session) {
     )
   })
   #Implement results plots
-  output$resultsPlot <- renderPlot({
+  output$resultsPlot <- renderPlotly({
     Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
     Vn <- input$variablesToPlot
     if (length(Vn) >= 2) {
       PlotData_df <- formatOutputData(model$status$name, Sc, Vn)
-      ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
+      plot <- ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
         geom_line() +
         facet_wrap(~Scenario)      
+      ggplotly(plot)
     } 
   })
   #Implement saving data

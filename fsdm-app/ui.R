@@ -10,6 +10,7 @@
 library(shiny)
 library(shinyBS)
 library(DT)
+library(plotly)
 library(ggplot2)
 library(DiagrammeR)
 #Function to support text area inputs
@@ -302,7 +303,7 @@ shinyUI(
           )          
         ),
         mainPanel(
-          plotOutput("resultsPlot")
+          plotlyOutput("resultsPlot")
         )
       )
     )
