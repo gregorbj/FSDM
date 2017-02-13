@@ -11,7 +11,7 @@ library(shiny)
 library(shinyBS)
 library(jsonlite)
 library(DT)
-library(ggplot2)
+library(tidyverse)
 library(plotly)
 library(DiagrammeR)
 #Helper.R script
@@ -941,47 +941,45 @@ shinyServer(function(input, output, session) {
       choices = sort(model$concepts$variable)
     )
   })
-  #Implement results plots
-  output$resultsPlot <- renderPlotly({
+  
+  results_plot <- reactive({
     Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
     Vn <- input$variablesToPlot
     if (length(Vn) >= 2) {
-      PlotData_df <- formatOutputData(model$status$name, Sc, Vn)
-      plot <- ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
+      ggplot(
+        formatOutputData(model$status$name, Sc, Vn),
+        aes(x=Iteration, y=Scaled, color=Concept)
+      ) +
         geom_line() +
-        facet_wrap(~Scenario)      
-      ggplotly(plot)
-    } 
+        facet_wrap(~Scenario)
+    }
   })
-  #Implement saving data
-  observeEvent(
-    input$saveResults,
-    {
-      Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
-      Vn <- input$variablesToPlot
-      if (length(Vn) >= 2) {
-        PlotData_df <- formatOutputData(model$status$name, Sc, Vn)
-        Plot <- ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
-          geom_line() +
-          facet_wrap(~Scenario)
-        if (input$analysisSaveName == "") {
-          createAlert(session = session, anchorId = "noAnalysisNameAlert", 
-                      title = "Missing Name", 
-                      content = "Analysis save name is missing. Enter a name.")
-          return()
-        } else {
-          AnalysisPath <- 
-            file.path("../models", model$status$name, "analysis", input$analysisSaveName)
-          if (!dir.exists(AnalysisPath)) {
-            dir.create(AnalysisPath)
-          }
-          ggsave(file.path(AnalysisPath, "plot.png"), plot = Plot, device = "png")
-          write.csv(PlotData_df, file = file.path(AnalysisPath, "data.csv"), row.names = FALSE)
-        }        
-      } 
+    
+  #Implement results plots
+  output$resultsPlot <- renderPlotly({
+    ggplotly(results_plot())
+  })
+  
+  
+  # download data 
+  output$download_data <- downloadHandler(
+    filename = function(){
+      paste("data-", input$analysisSaveName, ".csv", sep="")
+    },
+    content = function(file){
+      readr::write_csv(results_plot()$data, file)
     }
   )
   
+  output$download_plot <- downloadHandler(
+    filename = function(){
+      paste("plot-", input$analysisSaveName, ".png", sep="")
+    },
+    content = function(file) {
+      ggsave(filename = file, plot = results_plot(), device = "png")
+    }
+  )
+
   
 
   

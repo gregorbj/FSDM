@@ -11,7 +11,7 @@ library(shiny)
 library(shinyBS)
 library(DT)
 library(plotly)
-library(ggplot2)
+library(tidyverse)
 library(DiagrammeR)
 #Function to support text area inputs
 textareaInput <- function(id, label, value="", rows=5, cols=40, class="form-control"){
@@ -342,7 +342,8 @@ shinyUI(
           uiOutput("selectScenarioPlot2"),
           uiOutput("selectVarsToPlot"),
           hr(),
-          actionButton("saveResults", "Save Results"),
+          downloadButton("download_plot", label = "Download Image"),
+          downloadButton("download_data", label = "Download Scenario Data"),
           textInput("analysisSaveName", "Analysis Save Name", ""),
           bsAlert(
             "noAnalysisNameAlert"
