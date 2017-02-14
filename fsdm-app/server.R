@@ -831,7 +831,7 @@ shinyServer(function(input, output, session) {
   #Define checkbox GUI element to select valid scenarios from list
   output$selectScenariosToRun <- renderUI({
     Scenarios_ <- 
-      dir(path = file.path("../models/", model$status$name, "scenarios"))
+      dir(path = file.path(GLOBAL_MODEL_DIR, model$status$name, "scenarios"))
     checkboxGroupInput(
       inputId = "scenariosToRun",
       label = "Check Scenarios to Run",
