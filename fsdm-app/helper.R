@@ -173,8 +173,7 @@ loadModelStatus <- function(ModelName, Author = NULL){
 #' @return a data frame containing the model concept information.
 #' @export
 loadModelConcepts <- function(ModelName){
-  ModelDir <-  file.path(GLOBAL_MODEL_DIR, ModelName)
-  fromJSON(file.path(ModelDir, "concepts.json"))
+  fromJSON(file.path(GLOBAL_MODEL_DIR, ModelName, "concepts.json"))
 }
 
 #-------------------------
@@ -192,8 +191,9 @@ loadModelConcepts <- function(ModelName){
 #' @return a data frame containing the model relations information.
 #' @export
 loadModelRelations <- function(ModelName){
-  ModelDir <-  file.path(GLOBAL_MODEL_DIR, ModelName)
-  fromJSON(file.path(ModelDir, "relations.json"), simplifyDataFrame = FALSE)
+  fromJSON(file.path(GLOBAL_MODEL_DIR, ModelName, "relations.json"), 
+           simplifyDataFrame = FALSE)
+  
 }
 
 #-------------------------
