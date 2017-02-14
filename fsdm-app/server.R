@@ -175,7 +175,7 @@ shinyServer(function(input, output, session) {
         "editModel" = "Select model to edit",
         "runModel" = "Select model to run"
       ),
-      choices = dir(path = "../models")[dir(path = "../models") != "templates"]
+      choices = dir(path = GLOBAL_MODEL_DIR)[dir(path = GLOBAL_MODEL_DIR) != "templates"]
     )
   })
   #Choose model start option and initialize model
@@ -191,7 +191,7 @@ shinyServer(function(input, output, session) {
           return()
         }
         #Check that model name does not duplicate an existing model name
-        ExistingModels_ <- dir("../models")
+        ExistingModels_ <- dir(GLOBAL_MODEL_DIR)
         if (input$modelName %in% ExistingModels_) {
           createAlert(session = session, anchorId = "duplicateModel",
                       title = "Duplicate Model",
@@ -227,7 +227,7 @@ shinyServer(function(input, output, session) {
           return()
         }
         #Check that model name does not duplicate an existing model name
-        ExistingModels_ <- dir("../models")
+        ExistingModels_ <- dir(GLOBAL_MODEL_DIR)
         if (input$modelName %in% ExistingModels_) {
           createAlert(session = session, anchorId = "duplicateModel",
                       title = "Duplicate Model",
@@ -853,7 +853,7 @@ shinyServer(function(input, output, session) {
           Sc <- input$scenariosToRun
           Sys.sleep(0.2)
           for (sc in Sc) {
-            ModelPath <- file.path("../models", model$status$name)
+            ModelPath <- file.path(GLOBAL_MODEL_DIR, model$status$name)
             ScenarioPath <- file.path(ModelPath, "scenarios", sc)
             Model_ls <- createFuzzyModel(ModelPath)
             Scenario_ls <- createFuzzyScenario(ScenarioPath, Model_ls, OpRange = c(0.1,99.9))

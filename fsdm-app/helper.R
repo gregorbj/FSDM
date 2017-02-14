@@ -3,6 +3,7 @@
 #Copyright: 2016, Oregon Department of Transportation 2016
 #License: Apache 2
 
+GLOBAL_MODEL_DIR = "/Users/Greg/Documents/rpackages/FSDM_GUI/models"
 
 ############################################
 #------------------------------------------#
@@ -30,7 +31,7 @@
 #' @export
 initializeNewModel <- function(ModelName, Author) {
   #Create directory for model
-  NewDir <- file.path("../models", ModelName)
+  NewDir <- file.path(GLOBAL_MODEL_DIR, ModelName)
   dir.create(NewDir)
   #Create and save a status list
   Attribution <- 
@@ -43,7 +44,7 @@ initializeNewModel <- function(ModelName, Author) {
                     notes = character(0))
   writeLines(toJSON(status_ls), file.path(NewDir, "status.json"))
   #Copy and save the concept and relations template files
-  CopyDir <- "../models/templates"
+  CopyDir <- paste0(GLOBAL_MODEL_DIR, "/templates")
   FilesToCopy_ <- file.path(
     CopyDir, c("concepts.json", "relations.json")
     )
@@ -86,9 +87,9 @@ initializeNewModel <- function(ModelName, Author) {
 #' @return a list containing values for name, parent, created, and lastedit.
 #' @export
 initializeCopyModel <- function(ModelName, CopyModelName, Author, CopyScenarios = FALSE) {
-  NewDir <- file.path("../models", ModelName)
+  NewDir <- file.path(GLOBAL_MODEL_DIR, ModelName)
   dir.create(NewDir)
-  CopyDir <- file.path("../models", CopyModelName)
+  CopyDir <- file.path(GLOBAL_MODEL_DIR, CopyModelName)
   if(CopyScenarios) {
     FilesToCopy_ <- file.path(
       CopyDir, c("status.json", "concepts.json", "relations.json", "scenarios")
@@ -146,7 +147,7 @@ initializeCopyModel <- function(ModelName, CopyModelName, Author, CopyScenarios 
 #' @return a list containing values for name, parent, created, and lastedit.
 #' @export
 loadModelStatus <- function(ModelName, Author = NULL){
-  ModelDir <-  file.path("../models", ModelName)
+  ModelDir <-  file.path(GLOBAL_MODEL_DIR, ModelName)
   status_ls <- as.list(fromJSON(file.path(ModelDir, "status.json")))
   if (!is.null(Author)) {
     Attribution <- 
@@ -172,7 +173,7 @@ loadModelStatus <- function(ModelName, Author = NULL){
 #' @return a data frame containing the model concept information.
 #' @export
 loadModelConcepts <- function(ModelName){
-  ModelDir <-  file.path("../models", ModelName)
+  ModelDir <-  file.path(GLOBAL_MODEL_DIR, ModelName)
   fromJSON(file.path(ModelDir, "concepts.json"))
 }
 
@@ -191,7 +192,7 @@ loadModelConcepts <- function(ModelName){
 #' @return a data frame containing the model relations information.
 #' @export
 loadModelRelations <- function(ModelName){
-  ModelDir <-  file.path("../models", ModelName)
+  ModelDir <-  file.path(GLOBAL_MODEL_DIR, ModelName)
   fromJSON(file.path(ModelDir, "relations.json"), simplifyDataFrame = FALSE)
 }
 
@@ -214,7 +215,7 @@ loadModelRelations <- function(ModelName){
 #' @export
 saveModel <- function(ModelData) {
   ModelName <- ModelData$status$name
-  ModelDir <- file.path("../models", ModelName)
+  ModelDir <- file.path(GLOBAL_MODEL_DIR, ModelName)
   writeLines(toJSON(ModelData$status), file.path(ModelDir, "status.json"))
   writeLines(toJSON(ModelData$concepts), file.path(ModelDir, "concepts.json"))
   writeLines(toJSON(ModelData$relations), file.path(ModelDir, "relations.json"))
@@ -700,7 +701,7 @@ makeDot <-
 #' @export
 initializeNewScenario <- function(ModelName, ScenarioName, Concepts_df) {
   #Create directory for scenario
-  NewDir <- paste0("../models/", ModelName, "/scenarios/", ScenarioName)
+  NewDir <- paste0(GLOBAL_MODEL_DIR, "/", ModelName, "/scenarios/", ScenarioName)
   dir.create(NewDir)
   #Create and save a status list
   status_ls <- list(name = ScenarioName,
@@ -803,10 +804,10 @@ conformScenario <- function(ConceptVars_, ScenarioValues_df){
 initializeCopyScenario <- 
   function(ModelName, ConceptVars_, ScenarioName, CopyScenarioName) {
   #Create directory for scenario
-  NewDir <- file.path("../models", ModelName, "scenarios", ScenarioName)
+  NewDir <- file.path(GLOBAL_MODEL_DIR, ModelName, "scenarios", ScenarioName)
   dir.create(NewDir)
   #Load the scenario values file to be copied and make conform to model
-  CopyFromDir <- file.path("../models", ModelName, "scenarios", CopyScenarioName)
+  CopyFromDir <- file.path(GLOBAL_MODEL_DIR, ModelName, "scenarios", CopyScenarioName)
   CopyValues_df <- fromJSON(file.path(CopyFromDir, "scenario.json"))
   values_df <- conformScenario(ConceptVars_, CopyValues_df)
   #Save the scenario values
@@ -845,7 +846,7 @@ initializeCopyScenario <-
 #' @export
 loadScenario <- function(ModelName, ConceptVars_, ScenarioFileName){
   #Identify the scenario directory
-  Dir <- paste0("../models/", ModelName, "/scenarios/", ScenarioFileName)
+  Dir <- paste0(GLOBAL_MODEL_DIR, "/", ModelName, "/scenarios/", ScenarioFileName)
   #Load the scenario values file to be copied and make conform to model
   CopyValues_df <- fromJSON(file.path(Dir, "scenario.json"))
   values_df <- conformScenario(ConceptVars_, CopyValues_df)
@@ -875,7 +876,7 @@ loadScenario <- function(ModelName, ConceptVars_, ScenarioFileName){
 saveScenario <- function(ScenarioData) {
   ModelName <- ScenarioData$status$model
   ScenarioName <- ScenarioData$status$name
-  ScenarioDir <- file.path("../models", ModelName, "scenarios", ScenarioName)
+  ScenarioDir <- file.path(GLOBAL_MODEL_DIR, ModelName, "scenarios", ScenarioName)
   writeLines(toJSON(ScenarioData$status), file.path(ScenarioDir, "status.json"))
   writeLines(toJSON(ScenarioData$values), file.path(ScenarioDir, "scenario.json"))
 }
@@ -990,7 +991,7 @@ validateScenario <- function(Values_df, Concepts_df) {
 #' of the names of scenarios that have outputs.
 #' @export
 listScenarios <- function(ModelName) {
-  ScenariosDir <- file.path("../models", ModelName, "scenarios")
+  ScenariosDir <- file.path(GLOBAL_MODEL_DIR, ModelName, "scenarios")
   Sc <- dir(ScenariosDir)
   if (length(Sc) == 0) {
     return(list(
@@ -1469,7 +1470,7 @@ runFuzzyModel <- function(M, S, OpRange, Pow = 10, NumIncr = 100, MaxIter=100){
 #' @return a string vector of the names of scenarios having model outputs.
 #' @export
 idScenWithOutputs <- function(ModelName) {
-  ScenPath <- file.path("../models", ModelName, "scenarios")
+  ScenPath <- file.path(GLOBAL_MODEL_DIR, ModelName, "scenarios")
   Sc <- dir(ScenPath)
   HasOutputs_ <- sapply(Sc, function(x) {
     file.exists(file.path(ScenPath, x, "Outputs_ls.RData"))
@@ -1497,7 +1498,7 @@ idScenWithOutputs <- function(ModelName) {
 #' iteration, scaled values, and rescaled values.
 #' @export
 formatOutputData <- function(ModelName, Sc, Vn) {
-  ScenPath <- file.path("../models", ModelName, "scenarios")
+  ScenPath <- file.path(GLOBAL_MODEL_DIR, ModelName, "scenarios")
   ModelOut_ls <- list()
   for (sc in Sc) {
     DataPath <- file.path(ScenPath, sc, "Outputs_ls.RData")
@@ -1526,4 +1527,3 @@ formatOutputData <- function(ModelName, Sc, Vn) {
   rownames(Results_df) <- NULL
   Results_df
 }
-
