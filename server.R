@@ -672,7 +672,7 @@ shinyServer(function(input, output, session) {
         "copyScenario" = "Select Scenario to Copy",
         "editScenario" = "Select Scenario to Edit"
       ),
-      choices = dir(path = paste0("../models/", model$status$name, "/scenarios"))
+      choices = listScenarios(model$status$name)
     )
   })
   
