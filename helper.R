@@ -147,8 +147,7 @@ initializeCopyModel <- function(ModelName, CopyModelName, Author, CopyScenarios 
 #' @return a list containing values for name, parent, created, and lastedit.
 #' @export
 loadModelStatus <- function(ModelName, Author = NULL){
-  ModelDir <-  file.path(GLOBAL_MODEL_DIR, ModelName)
-  status_ls <- as.list(fromJSON(file.path(ModelDir, "status.json")))
+  status_ls <- fromJSON(file.path(GLOBAL_MODEL_DIR, ModelName, "status.json"))
   if (!is.null(Author)) {
     Attribution <- 
       paste0("Model: ", ModelName, "   Author: ", Author, "   Edited: ", as.character(Sys.time()))
