@@ -3,7 +3,7 @@
 #Copyright: 2016, Oregon Department of Transportation 2016
 #License: Apache 2
 
-GLOBAL_MODEL_DIR = "/Users/Greg/Documents/rpackages/FSDM_GUI/models"
+GLOBAL_MODEL_DIR = "/home/rstudio/models"
 
 ############################################
 #------------------------------------------#
