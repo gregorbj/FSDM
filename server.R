@@ -174,7 +174,7 @@ shinyServer(function(input, output, session) {
         "editModel" = "Select model to edit",
         "runModel" = "Select model to run"
       ),
-      choices = dir(path = "../models")[dir(path = "../models") != "templates"]
+      choices = dir(path = "models")[dir(path = "models") != "templates"]
     )
   })
   #Choose model start option and initialize model
@@ -190,7 +190,7 @@ shinyServer(function(input, output, session) {
           return()
         }
         #Check that model name does not duplicate an existing model name
-        ExistingModels_ <- dir("../models")
+        ExistingModels_ <- dir("models")
         if (input$modelName %in% ExistingModels_) {
           createAlert(session = session, anchorId = "duplicateModel",
                       title = "Duplicate Model",
@@ -226,7 +226,7 @@ shinyServer(function(input, output, session) {
           return()
         }
         #Check that model name does not duplicate an existing model name
-        ExistingModels_ <- dir("../models")
+        ExistingModels_ <- dir("models")
         if (input$modelName %in% ExistingModels_) {
           createAlert(session = session, anchorId = "duplicateModel",
                       title = "Duplicate Model",
@@ -672,7 +672,7 @@ shinyServer(function(input, output, session) {
         "copyScenario" = "Select Scenario to Copy",
         "editScenario" = "Select Scenario to Edit"
       ),
-      choices = dir(path = paste0("../models/", model$status$name, "/scenarios"))
+      choices = dir(path = paste0("models/", model$status$name, "/scenarios"))
     )
   })
   #Choose model start option and initialize model
@@ -830,7 +830,7 @@ shinyServer(function(input, output, session) {
   #Define checkbox GUI element to select valid scenarios from list
   output$selectScenariosToRun <- renderUI({
     Scenarios_ <- 
-      dir(path = file.path("../models/", model$status$name, "scenarios"))
+      dir(path = file.path("models/", model$status$name, "scenarios"))
     checkboxGroupInput(
       inputId = "scenariosToRun",
       label = "Check Scenarios to Run",
@@ -852,7 +852,7 @@ shinyServer(function(input, output, session) {
           Sc <- input$scenariosToRun
           Sys.sleep(0.2)
           for (sc in Sc) {
-            ModelPath <- file.path("../models", model$status$name)
+            ModelPath <- file.path("models", model$status$name)
             ScenarioPath <- file.path(ModelPath, "scenarios", sc)
             Model_ls <- createFuzzyModel(ModelPath)
             Scenario_ls <- createFuzzyScenario(ScenarioPath, Model_ls, OpRange = c(0.1,99.9))
@@ -969,7 +969,7 @@ shinyServer(function(input, output, session) {
           return()
         } else {
           AnalysisPath <- 
-            file.path("../models", model$status$name, "analysis", input$analysisSaveName)
+            file.path("models", model$status$name, "analysis", input$analysisSaveName)
           if (!dir.exists(AnalysisPath)) {
             dir.create(AnalysisPath)
           }
