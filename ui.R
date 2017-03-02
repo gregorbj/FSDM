@@ -316,18 +316,21 @@ shinyUI(
       titlePanel("Analyze Results"),
       sidebarLayout(
         sidebarPanel(
-          actionButton("listRunScenarios", "Update Scenario Selection Set"),
-          hr(),
+          uiOutput("selectModelforPlot1"),
+          #actionButton("listRunScenarios1", "Update Scenario Selection Set"),
           uiOutput("selectScenarioPlot1"),          
-          uiOutput("selectScenarioPlot2"),
-          uiOutput("selectVarsToPlot"),
           hr(),
+          uiOutput("selectModelforPlot2"),
+          #actionButton("listRunScenarios2", "Update Scenario Selection Set"),
+          uiOutput("selectScenarioPlot2"),
+          hr(),
+          uiOutput("selectVarsToPlot"),
           downloadButton("download_plot", label = "Download Image"),
           downloadButton("download_data", label = "Download Scenario Data"),
           textInput("analysisSaveName", "Analysis Save Name", ""),
           bsAlert("noAnalysisNameAlert")          
         ),
-        mainPanel( plotlyOutput("resultsPlot"))
+        mainPanel(plotlyOutput("resultsPlot"))
       )
     )
   )

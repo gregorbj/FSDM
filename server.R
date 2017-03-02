@@ -893,50 +893,81 @@ shinyServer(function(input, output, session) {
   
     
   # DISPLAY RESULTS ====================
-  # Implement action button to update list of scenarios that have been run
+  # Select the model and scenario for the first model
+  output$selectModelforPlot1 <- renderUI({
+    selectInput(
+      inputId = "modelName1",
+      label = "Model 1",
+      choices = dir(path = GLOBAL_MODEL_DIR)[dir(path = GLOBAL_MODEL_DIR) != "templates"]
+    )
+  })
+  
+  # update the scenario list for model 1
   observeEvent(
-    input$listRunScenarios, {
-      scenariolist$run <- listScenarios(model$status$name)$Run
+    input$listRunScenarios1, {
+      scenariolist1$run <- listScenarios(input$modelName1)$Run
     }
   )
   
-  # Define GUI element to select scenario 1 from a list
+  # Define GUI element to select scenario 1 from a list of models
   output$selectScenarioPlot1 <- renderUI({
-    Sc <- scenariolist$run
+    Sc <- listScenarios(input$modelName1)$Run
     selectInput(
       inputId = "scenarioPlot1",
       label = "Select Scenario 1",
-      choices = Sc
+      choices = if(is.null(Sc)){c("Select a Model")} else {Sc}
     )
   })
   
+  
+  # Select the model and scenario for the second model
+  output$selectModelforPlot2 <- renderUI({
+    selectInput(
+      inputId = "modelName2",
+      label = "Model 2",
+      choices = dir(path = GLOBAL_MODEL_DIR)[dir(path = GLOBAL_MODEL_DIR) != "templates"]
+    )
+  })
+  
+  # update the scenario list for model 1
+  observeEvent(
+    input$listRunScenarios2, {
+      scenariolist2$run <- listScenarios(input$modelName2)$Run
+    }
+  )
+  
   # Define GUI element to select scenario 2 from a list
   output$selectScenarioPlot2 <- renderUI({
-    Sc <- scenariolist$run
+    Sc <- listScenarios(input$modelName2)$Run
     selectInput(
       inputId = "scenarioPlot2",
       label = "Select Scenario 2",
-      choices = Sc
+      choices = if(is.null(Sc)){c("Select a Model")} else {Sc}
     )
   })
+  
   
   # Define checkbox GUI element to select variables to plot
   output$selectVarsToPlot <- renderUI({
     checkboxGroupInput(
       inputId = "variablesToPlot",
       label = "Check Variables to Plot",
-      choices = sort(model$concepts$variable)
+      choices = sort(intersect(
+        loadModelConcepts(input$modelName1)$variable,
+        loadModelConcepts(input$modelName2)$variable
+      ))
     )
   })
   
   
-  # Generate a ggplot2 graphic with results
+  # Generate a ggplot2 graphic with results -----
   results_plot <- reactive({
+    models <- c(input$modelName1, input$modelName2)
     Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
     Vn <- input$variablesToPlot
     if (length(Vn) >= 2) {
       ggplot(
-        formatOutputData(model$status$name, Sc, Vn),
+        formatOutputData(models, Sc, Vn),
         aes(x=Iteration, y=Scaled, color=Concept)
       ) +
         geom_line() +
@@ -946,8 +977,11 @@ shinyServer(function(input, output, session) {
     
   # Show a plotly object of the ggplot2 result
   output$resultsPlot <- renderPlotly({
-    ggplotly(results_plot())
+    if(!is.null(results_plot())){
+      ggplotly(results_plot())
+    }
   })
+  
   
   
   # Button to download the graphic data to a local CSV
