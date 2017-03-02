@@ -716,7 +716,7 @@ initializeNewScenario <- function(ModelName, ScenarioName, Concepts_df) {
   values_df <-
     data.frame(name = Concepts_,
                startvalue = rep("NA", length(Concepts_)),
-               startchange = rep("NA", length(Concepts_)),
+               endvalue = rep("NA", length(Concepts_)),
                description = rep("", length(Concepts_)),
                stringsAsFactors = FALSE
                )
@@ -761,7 +761,7 @@ conformScenario <- function(ConceptVars_, ScenarioValues_df){
       data.frame(
         name = MissingConcepts_,
         startvalue = rep("NA", length(MissingConcepts_)),
-        startchange = rep("NA", length(MissingConcepts_)),
+        endvalue = rep("NA", length(MissingConcepts_)),
         description = rep("", length(MissingConcepts_)),
         stringsAsFactors = FALSE
       )
@@ -901,7 +901,7 @@ saveScenario <- function(ScenarioData) {
 validateScenario <- function(Values_df, Concepts_df) {
   Cn <- Concepts_df$variable
   #Convert Values_df to analyze
-  Values_mx <- as.matrix(Values_df[, c("startvalue", "startchange")])
+  Values_mx <- as.matrix(Values_df[, c("startvalue", "endvalue")])
   Values_mx[Values_mx == "NA"] <- NA
   Values_mx <- apply(Values_mx, 2, function(x) as.numeric(x))
   rownames(Values_mx) <- Values_df$name
@@ -938,20 +938,20 @@ validateScenario <- function(Values_df, Concepts_df) {
       }
     }
   }
-  #Check whether there is at least one startchange that is not NA
-  if (all(is.na(Values_df$startchange))) {
-    ErrMsg <- "All values for 'startchange' are NA. At least one must be a number."
+  #Check whether there is at least one endvalue that is not NA
+  if (all(is.na(Values_df$endvalue))) {
+    ErrMsg <- "All values for 'endvalue' are NA. At least one must be a number."
     Errors_ <- c(Errors_, "\n", ErrMsg)
     HasErrors <- TRUE
   }
-  #Check whether all the startchange values are within range
+  #Check whether all the endvalue values are within range
   for (cn in Cn) {
-    ChangeVal <- as.numeric(Values_mx[cn, "startchange"])
+    ChangeVal <- as.numeric(Values_mx[cn, "endvalue"])
     MinVal <- as.numeric(ValRng_df[cn,"min"])
     MaxVal <- as.numeric(ValRng_df[cn,"max"])
     if (!is.na(ChangeVal)) {
       if ((ChangeVal < MinVal) | (ChangeVal > MaxVal)) {
-        ErrMsg <- paste("'startchange' value for", cn, "is outside the range of acceptable values.")
+        ErrMsg <- paste("'endvalue' value for", cn, "is outside the range of acceptable values.")
         Errors_ <- c(Errors_, "\n", ErrMsg)
         HasErrors <- TRUE
       }
@@ -1212,8 +1212,8 @@ createFuzzyScenario <- function(Dir, M, OpRange) {
   Values_df <- fromJSON(file.path(Dir, "scenario.json"))
   rownames(Values_df) <- Values_df$name
   Values_df$startvalue <- as.numeric(Values_df$startvalue)
-  Values_df$startchange[Values_df$startchange == "NA"] <- NA
-  Values_df$startchange <- as.numeric(Values_df$startchange)
+  Values_df$endvalue[Values_df$endvalue == "NA"] <- NA
+  Values_df$endvalue <- as.numeric(Values_df$endvalue)
   #Convert input starting values to range of 0 - 100
   StartValues_Cn <- numeric(length(M$Cn))
   names(StartValues_Cn) <- M$Cn
@@ -1231,8 +1231,8 @@ createFuzzyScenario <- function(Dir, M, OpRange) {
   ChangeTo_Cn <- numeric(length(M$Cn))
   names(ChangeTo_Cn) <- M$Cn
   for(cn in M$Cn) {
-    if (!is.na(Values_df[cn, "startchange"])) {
-      ChangeVal <- Values_df[cn, "startchange"]
+    if (!is.na(Values_df[cn, "endvalue"])) {
+      ChangeVal <- Values_df[cn, "endvalue"]
       MinVal <- as.numeric(ValRng_df[cn,"min"])
       MaxVal <- as.numeric(ValRng_df[cn,"max"])
       ChangeTo_Cn[cn] <- rescale(ChangeVal, c(MinVal, MaxVal), OpRange )

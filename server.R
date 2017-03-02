@@ -120,8 +120,8 @@ shinyServer(function(input, output, session) {
     output$scenarioConcept <- renderText({scenariotable$values$name[RowNum]})
     updateTextInput(session, "conceptStartValue",
                     value = scenariotable$values$startvalue[RowNum])
-    updateTextInput(session, "conceptStartChange",
-                    value = scenariotable$values$startchange[RowNum])
+    updateTextInput(session, "conceptEndValue",
+                    value = scenariotable$values$endvalue[RowNum])
     updateTextInput(session, "conceptValuesDescription",
                     value = scenariotable$values$description[RowNum])
   }
@@ -153,7 +153,7 @@ shinyServer(function(input, output, session) {
                     value = "")
     updateTextInput(session, "conceptStartValue",
                     value = "")
-    updateTextInput(session, "conceptStartChange",
+    updateTextInput(session, "conceptEndValue",
                     value = "")
     updateTextInput(session, "conceptValuesDescription",
                     value = "")
@@ -672,7 +672,7 @@ shinyServer(function(input, output, session) {
         "copyScenario" = "Select Scenario to Copy",
         "editScenario" = "Select Scenario to Edit"
       ),
-      choices = listScenarios(model$status$name)
+      choices = listScenarios(model$status$name)$All
     )
   })
   
@@ -756,7 +756,7 @@ shinyServer(function(input, output, session) {
       RowNum <- input$scenarioTable_rows_selected
       #scenariotable$values$name[RowNum] <- input$conceptVarName
       scenariotable$values$startvalue[RowNum] <- input$conceptStartValue
-      scenariotable$values$startchange[RowNum] <- input$conceptStartChange
+      scenariotable$values$endvalue[RowNum] <- input$conceptEndValue
       scenariotable$values$description[RowNum] <- input$conceptValuesDescription
       #Update scenario values
       scenario$values <- scenariotable$values

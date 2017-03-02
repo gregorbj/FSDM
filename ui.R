@@ -11,8 +11,6 @@ library(plotly)
 library(tidyverse)
 library(DiagrammeR)
 
-
-
 # Function to support text area inputs
 textareaInput <- function(id, label, value="", rows=5, cols=40, class="form-control"){
   tags$div(
@@ -272,7 +270,7 @@ shinyUI(
             h4("Concept: ", textOutput("scenarioConcept", inline = TRUE)),
             hr(),
             textInput("conceptStartValue", "Concept Starting Value"),
-            textInput("conceptStartChange", "Concept Starting Change"),
+            textInput("conceptEndValue", "Concept Ending Value"),
             textareaInput("conceptValuesDescription", "Concept Values Description"),
             actionButton("updateScenario", "Update"),
             actionButton("undoScenarioAction", "Undo"),
