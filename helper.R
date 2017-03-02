@@ -1496,17 +1496,21 @@ idScenWithOutputs <- function(ModelName) {
 #' @return A data frame having columns identifying the scenario, concept,
 #' iteration, scaled values, and rescaled values.
 #' @export
-formatOutputData <- function(ModelName, Sc, Vn) {
-  ScenPath <- file.path(GLOBAL_MODEL_DIR, ModelName, "scenarios")
+formatOutputData <- function(ModelNames, Sc, Vn) {
+  
   ModelOut_ls <- list()
-  for (sc in Sc) {
-    DataPath <- file.path(ScenPath, sc, "Outputs_ls.RData")
-    if (file.exists(DataPath)) {
-      load(DataPath)
-      ModelOut_ls[[sc]]$Scaled <- Outputs_ls$ScaledSummary
-      ModelOut_ls[[sc]]$Rescaled <- Outputs_ls$RescaledSummary
+  
+  for (model in ModelNames){
+    for (sc in Sc) {
+      DataPath <- file.path(GLOBAL_MODEL_DIR, model, "scenarios", sc, "Outputs_ls.RData")
+      if (file.exists(DataPath)) {
+        load(DataPath)
+        ModelOut_ls[[paste(model, sc, sep = ": ")]]$Scaled <- Outputs_ls$ScaledSummary
+        ModelOut_ls[[paste(model, sc, sep = ": ")]]$Rescaled <- Outputs_ls$RescaledSummary
+      }
     }
   }
+  
   Results_ls <- 
     lapply(ModelOut_ls, function(x) {
       Sc <- rownames(x$Scaled)
