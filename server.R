@@ -1000,7 +1000,8 @@ shinyServer(function(input, output, session) {
       paste("plot-", input$analysisSaveName, ".png", sep="")
     },
     content = function(file) {
-      ggsave(filename = file, plot = results_plot(), device = "png")
+      ggsave(filename = file, plot = results_plot(), device = "png",
+             width = 6.5, height = 4, units = "in")
     }
   )
 
