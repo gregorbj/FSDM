@@ -1,4 +1,4 @@
-# FSDM_GUI
+# FSDM
 Fuzzy Systems Dynamics Model Implemented with a Graphical User Interface
 
 This project is the latest version of the Fuzzy Systems Dynamics Model (FSDM) and includes a graphical user interface for building and running FSDM models. It includes technical documentation of the FSDM modeling approach and a user's guide for the GUI software.
