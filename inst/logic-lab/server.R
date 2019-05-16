@@ -18,15 +18,13 @@ library(shinyFiles)
 library(fs)
 library(filesstrings)
 library(plotly)
-#Helper.R script
-source("helper.R")
 
 
 #SHINY SERVER FUNCTION
 #---------------------
 shinyServer(function(input, output, session) {
 
-    
+
   #------------------------------------------------
   #CREATE OBJECTS TO STORE MODEL AND SCENARIO STATE
   #------------------------------------------------
@@ -37,7 +35,7 @@ shinyServer(function(input, output, session) {
   #Reactive object to represent concepts table
   conceptstable <- reactiveValues(concepts = NULL)
   #Create a reactive object to store current selected effects
-  effects <- 
+  effects <-
     reactiveValues(
       variable = "",
       name = "",
@@ -45,7 +43,7 @@ shinyServer(function(input, output, session) {
       strength = "",
       description = "")
   #Create a reactive object to store scenario data in
-  scenario <- 
+  scenario <-
     reactiveValues(status = NULL, values = NULL, history = NULL)
   #Create a reactive object to represent scenario table
   scenariotable <- reactiveValues(values = NULL)
@@ -58,7 +56,7 @@ shinyServer(function(input, output, session) {
   #Create a reactive object to keep track of the models folder
   modelsfolder <- reactiveValues(name = NULL)
 
-  
+
   #-----------------------------------------------------
   #DEFINE COMMON FUNCTIONS FOR MODIFYING REACTIVE VALUES
   #-----------------------------------------------------
@@ -167,7 +165,7 @@ shinyServer(function(input, output, session) {
                     value = "")
     updateTextInput(session, "conceptValuesDescription",
                     value = "")
-  } 
+  }
 
 
   #--------------------------------------
@@ -205,8 +203,8 @@ shinyServer(function(input, output, session) {
       if (input$modelAction == "newModel") {
         #Check that there is a model name
         if (input$modelName == "") {
-          createAlert(session = session, anchorId = "nonameAlert", 
-                      title = "Missing Name", 
+          createAlert(session = session, anchorId = "nonameAlert",
+                      title = "Missing Name",
                       content = "Model name is missing. Enter a name.")
           return()
         }
@@ -228,7 +226,7 @@ shinyServer(function(input, output, session) {
           return()
         }
         resetModel()
-        ModelAuthor <- 
+        ModelAuthor <-
           paste0(input$firstName, " ", input$lastName, " (", input$organization, ")")
         model$status <- initializeNewModel(input$modelName, ModelAuthor)
         model$concepts <- loadModelConcepts(input$modelName)
@@ -241,8 +239,8 @@ shinyServer(function(input, output, session) {
       }
       if (input$modelAction == "copyModel") {
         if (input$modelName == "") {
-          createAlert(session = session, anchorId = "nonameAlert", 
-                      title = "Missing Name", 
+          createAlert(session = session, anchorId = "nonameAlert",
+                      title = "Missing Name",
                       content = "Model name is missing. Enter a name.")
           return()
         }
@@ -264,9 +262,9 @@ shinyServer(function(input, output, session) {
           return()
         }
         resetModel()
-        ModelAuthor <- 
+        ModelAuthor <-
           paste0(input$firstName, " ", input$lastName, " (", input$organization, ")")
-        model$status <- 
+        model$status <-
           initializeCopyModel(input$modelName, input$modelFileName, ModelAuthor, input$copyScenarios)
         model$concepts <- loadModelConcepts(input$modelName)
         model$relations <- loadModelRelations(input$modelName)
@@ -287,7 +285,7 @@ shinyServer(function(input, output, session) {
           return()
         }
         resetModel()
-        ModelAuthor <- 
+        ModelAuthor <-
           paste0(input$firstName, " ", input$lastName, " (", input$organization, ")")
         model$status <- loadModelStatus(input$modelFileName, ModelAuthor)
         model$concepts <- loadModelConcepts(input$modelFileName)
@@ -317,8 +315,8 @@ shinyServer(function(input, output, session) {
   output$modelCreated <- renderText({model$status$created})
   output$modelEdited <- renderText({model$status$lastedit})
   output$modelAttribution <- renderText({paste(model$status$attribution, collapse = "\n")})
-  
-    
+
+
   #----------------------------------------------
   #IMPLEMENT INTERFACE FOR EDITING MODEL CONCEPTS
   #----------------------------------------------
@@ -355,16 +353,16 @@ shinyServer(function(input, output, session) {
       IsDupName <- input$conceptName %in% model$concepts$name
       IsDupVar <- input$varName %in% model$concepts$variable
       if (is$newconcept & IsDupName) {
-        createAlert(session = session, anchorId = "duplicateConceptName", 
-                    title = "Duplicate Concept Name", 
+        createAlert(session = session, anchorId = "duplicateConceptName",
+                    title = "Duplicate Concept Name",
                     content = "New concept name is the same as name for an existing concept. Rename before updating.")
-        return()        
+        return()
       }
       if (is$newconcept & IsDupVar) {
-        createAlert(session = session, anchorId = "duplicateConceptVariable", 
-                    title = "Duplicate Concept Label", 
+        createAlert(session = session, anchorId = "duplicateConceptVariable",
+                    title = "Duplicate Concept Label",
                     content = "New concept label name is the same as label name for an existing concept. Rename before updating.")
-        return()        
+        return()
       }
       #Save state of current model
       saveLastState()
@@ -387,7 +385,7 @@ shinyServer(function(input, output, session) {
       if (AnyRelations) {
         ExistingRelations_ <- unlist(lapply(model$relations, function(x) x$name))
         if (!(input$varName %in% ExistingRelations_)) {
-          model$relations[[length(model$relations) + 1]] <- 
+          model$relations[[length(model$relations) + 1]] <-
             list(name = input$varName, affects = list())
         }
       } else {
@@ -420,7 +418,7 @@ shinyServer(function(input, output, session) {
       #conceptstable$concepts <- model$concepts
       #Update model relations
       Relations_ls <- model$relations
-      RelationsNames_ <- 
+      RelationsNames_ <-
         unlist(lapply(Relations_ls, function(x) x$name))
       RelationIdx <- which(RelationsNames_ == Var)
       Relations_ls[[RelationIdx]] <- NULL
@@ -439,12 +437,12 @@ shinyServer(function(input, output, session) {
   )
   #Output model concepts table
   output$conceptsTable <- DT::renderDataTable(
-    formatConceptTable(conceptstable$concepts), 
-    server = FALSE, 
+    formatConceptTable(conceptstable$concepts),
+    server = FALSE,
     selection = list(mode = 'single', target = 'row', selected = 1),
     options = list(pageLength = 20)
   )
-  
+
 
   #-----------------------------------------------
   #IMPLEMENT INTERFACE FOR EDITING MODEL RELATIONS
@@ -523,7 +521,7 @@ shinyServer(function(input, output, session) {
   observeEvent(
     input$affectedConcept,
     {
-      #in following if, change effects$name to effects$variable 
+      #in following if, change effects$name to effects$variable
       if (input$affectedConcept %in% effects$variable) {
           updateTextInput(session, "causalDirection",
                           value = effects$direction[effects$variable == input$affectedConcept])
@@ -534,7 +532,7 @@ shinyServer(function(input, output, session) {
       } else {
         updateTextInput(session, "causalDirection", value = "")
         updateTextInput(session, "causalStrength", value = "")
-        updateTextInput(session, "causalDesc", value = "")        
+        updateTextInput(session, "causalDesc", value = "")
       }
     }
   )
@@ -546,19 +544,19 @@ shinyServer(function(input, output, session) {
       saveLastState()
       #Update Relation
       #change concepts$name to concepts$variable
-      CausalConcept <- 
+      CausalConcept <-
         model$concepts$variable[model$concepts$variable == input$causalConcept]
       CausalConcepts_ <-
         unlist(lapply(model$relations, function(x) x$name))
       CausalIdx <- which(CausalConcepts_ == CausalConcept)
-      AffectedConcept <- 
+      AffectedConcept <-
         model$concepts$variable[model$concepts$variable == input$affectedConcept]
       NewEffect_ls <-
         list(variable = AffectedConcept,
              direction = input$causalDirection,
              weight = input$causalStrength,
              description = input$causalDesc)
-      Effects_ls <- 
+      Effects_ls <-
         model$relations[[CausalIdx]]$affects
       if (length(Effects_ls) != 0) {
         AffectedConcepts_ <- unlist(lapply(Effects_ls, function(x) x$variable))
@@ -583,16 +581,16 @@ shinyServer(function(input, output, session) {
       saveLastState()
       #Remove relation from model
       #change concepts$name to concepts$variable
-      CausalConcept <- 
+      CausalConcept <-
         model$concepts$variable[model$concepts$variable == input$causalConcept]
       CausalConcepts_ <-
         unlist(lapply(model$relations, function(x) x$name))
       CausalIdx <- which(CausalConcepts_ == CausalConcept)
-      AffectedConcept <- 
+      AffectedConcept <-
         model$concepts$variable[model$concepts$variable == input$affectedConcept]
-      Effects_ls <- 
+      Effects_ls <-
         model$relations[[CausalIdx]]$affects
-      EffectIdx <- 
+      EffectIdx <-
         which(unlist(lapply(Effects_ls, function(x) x$variable)) == AffectedConcept)
       if (length(EffectIdx) != 0) {
         Effects_ls[[EffectIdx]] <- NULL
@@ -662,24 +660,24 @@ shinyServer(function(input, output, session) {
     {
       showNotification(
         ui = "Saving Model",
-        duration = 1, 
+        duration = 1,
         closeButton = TRUE,
         type = "message"
       )
-      Author <- 
+      Author <-
         paste0("Edited By: ", input$firstName, " ", input$lastName, " (", input$organization, ")")
       Timestamp <-
         paste0("When: ", model$status$lastedit)
-      Notation <- 
+      Notation <-
         paste0("Notes: ", input$modelNotes)
       CurrentNote <-
         paste(Author, Timestamp, Notation, sep = " | ")
-      model$status$notes <- c(CurrentNote, model$status$notes) 
+      model$status$notes <- c(CurrentNote, model$status$notes)
       saveModel(model)
       updateTextAreaInput(session = session, inputId = "modelNotes", value = "")
     }
   )
-  
+
 
   #-----------------------------------------
   #IMPLEMENT INTERFACE FOR CHOOSING SCENARIO
@@ -707,7 +705,7 @@ shinyServer(function(input, output, session) {
                       content = "Scenario name is missing. Enter a name.")
           return()
         }
-        ScenInit_ls <- 
+        ScenInit_ls <-
           initializeNewScenario(model$status$name, input$scenarioName, model$concepts)
         scenario$status <- ScenInit_ls$status
         scenario$values <- ScenInit_ls$values
@@ -722,11 +720,11 @@ shinyServer(function(input, output, session) {
                       content = "Scenario name is missing. Enter a name.")
           return()
         }
-        ScenInit_ls <- 
+        ScenInit_ls <-
           initializeCopyScenario(
             model$status$name,
             model$concepts$variable,
-            input$scenarioName, 
+            input$scenarioName,
             input$scenarioFileName
             )
         scenario$status <- ScenInit_ls$status
@@ -736,9 +734,9 @@ shinyServer(function(input, output, session) {
         updateScenarioForm(1)
       }
       if (input$scenarioAction == "editScenario") {
-        ScenInit_ls <- 
+        ScenInit_ls <-
           loadScenario(
-            model$status$name, 
+            model$status$name,
             model$concepts$variable,
             input$scenarioFileName
             )
@@ -758,7 +756,7 @@ shinyServer(function(input, output, session) {
   output$scenarioEdited <- renderText({scenario$status$lastedit})
   output$scenarioValidated <- renderText({scenario$status$validated})
 
-  
+
   #----------------------------------------
   #IMPLEMENT INTERFACE FOR EDITING SCENARIO
   #----------------------------------------
@@ -809,7 +807,7 @@ shinyServer(function(input, output, session) {
         VMsg <- "Congratulations, the scenario was successfully validated!"
         showNotification(
           ui = VMsg,
-          duration = 2, 
+          duration = 2,
           closeButton = TRUE,
           type = "message"
         )
@@ -819,7 +817,7 @@ shinyServer(function(input, output, session) {
         VMsg <- paste(Validation_ls$Errors, collapse = "\n")
         showNotification(
           ui = VMsg,
-          duration = 15, 
+          duration = 15,
           closeButton = TRUE,
           type = "error"
         )
@@ -834,7 +832,7 @@ shinyServer(function(input, output, session) {
     selection = list(mode = 'single', target = 'row', selected = 1),
     options = list(pageLength = 20)
   )
-  
+
 
   #-----------------------------------------
   #IMPLEMENT INTERFACE FOR RUNNING THE MODEL
@@ -850,7 +848,7 @@ shinyServer(function(input, output, session) {
   )
   #Define checkbox GUI element to select valid scenarios from list
   output$selectScenariosToRun <- renderUI({
-    Scenarios_ <- 
+    Scenarios_ <-
       dir(path = file.path("../models/", model$status$name, "scenarios"))
     checkboxGroupInput(
       inputId = "scenariosToRun",
@@ -859,7 +857,7 @@ shinyServer(function(input, output, session) {
     )
   })
   #List scenarios that are not validated
-  output$invalidScenarios <- 
+  output$invalidScenarios <-
     renderText(scenariolist$invalid)
   #Select growth rate type
   output$selectGrowthRateType <- renderUI({
@@ -889,7 +887,7 @@ shinyServer(function(input, output, session) {
             Outputs_ls <- runFuzzyModel(Model_ls, Scenario_ls, Type = input$Type)
             save(Outputs_ls, file = file.path(ScenarioPath, "Outputs_ls.RData"))
             incProgress(1 / length(Sc))
-          }          
+          }
         }
       )
       showNotification(
@@ -906,7 +904,7 @@ shinyServer(function(input, output, session) {
   #   {
   #     output$runMessage <- renderText({""})
   #     scenariolist$valid <- ""
-  #     scenariolist$invalid <- ""      
+  #     scenariolist$invalid <- ""
   #   }
   # )
   #Implement the revalidate scenarios button
@@ -916,7 +914,7 @@ shinyServer(function(input, output, session) {
       Sc <- listScenarios(model$status$name)$All
       for (sc in Sc) {
         Scenario <- loadScenario(
-          model$status$name, 
+          model$status$name,
           model$concepts$variable,
           sc
         )
@@ -932,8 +930,8 @@ shinyServer(function(input, output, session) {
       }
     }
   )
-  
-    
+
+
   #------------------------------------------
   #IMPLEMENT INTERFACE FOR DISPLAYING RESULTS
   #------------------------------------------
@@ -980,9 +978,9 @@ shinyServer(function(input, output, session) {
       # ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
       plot <- ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
         geom_line() +
-        facet_wrap(~Scenario) 
+        facet_wrap(~Scenario)
       ggplotly(plot)
-    } 
+    }
   })
   #Implement saving data
   observeEvent(
@@ -996,24 +994,24 @@ shinyServer(function(input, output, session) {
           geom_line() +
           facet_wrap(~Scenario)
         if (input$analysisSaveName == "") {
-          createAlert(session = session, anchorId = "noAnalysisNameAlert", 
-                      title = "Missing Name", 
+          createAlert(session = session, anchorId = "noAnalysisNameAlert",
+                      title = "Missing Name",
                       content = "Analysis save name is missing. Enter a name.")
           return()
         } else {
-          AnalysisPath <- 
+          AnalysisPath <-
             file.path(modelsfolder$name, model$status$name, "analysis", input$analysisSaveName)
           if (!dir.exists(AnalysisPath)) {
             dir.create(AnalysisPath)
           }
           ggsave(file.path(AnalysisPath, "plot.png"), plot = Plot, device = "png")
           write.csv(PlotData_df, file = file.path(AnalysisPath, "data.csv"), row.names = FALSE)
-        }        
-      } 
+        }
+      }
     }
   )
-  
-  
 
-  
+
+
+
 })
