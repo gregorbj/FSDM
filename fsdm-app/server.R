@@ -1,6 +1,7 @@
 #server.R
 #Author: Brian Gregor, Oregon Systems Analytics LLC
 #Copyright: 2016, Oregon Department of Transportation 2016
+#Copyright: 2019, Brian Gregor
 #License: Apache 2
 
 
@@ -13,6 +14,10 @@ library(jsonlite)
 library(DT)
 library(ggplot2)
 library(DiagrammeR)
+library(shinyFiles)
+library(fs)
+library(filesstrings)
+library(plotly)
 #Helper.R script
 source("helper.R")
 
@@ -48,6 +53,10 @@ shinyServer(function(input, output, session) {
   scenariolist <- reactiveValues(valid = "", invalid = "", run = "", all = "")
   #Create a reactive object to keep track of various conditions
   is <- reactiveValues(newconcept = FALSE)
+  #Create a reactive object to keep track of the project folder
+  projectfolder <- reactiveValues(name = NULL)
+  #Create a reactive object to keep track of the models folder
+  modelsfolder <- reactiveValues(name = NULL)
 
   
   #-----------------------------------------------------
@@ -164,6 +173,18 @@ shinyServer(function(input, output, session) {
   #--------------------------------------
   #IMPLEMENT INTERFACE FOR STARTING MODEL
   #--------------------------------------
+  #Code to implement selection of project directory
+  observeEvent(
+    input$ProjectFolder,
+    {
+      Volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+      shinyDirChoose(input, "ProjectFolder", roots = Volumes, session = session)
+      projectfolder$name <- as.character(parseDirPath(Volumes, input$ProjectFolder))
+      modelsfolder$name <- file.path(projectfolder$name, "models")
+      output$projectFolder <- renderText({projectfolder$name})
+      if (!file.exists("models")) create_dir(modelsfolder$name)
+    }
+  )
   #Define GUI element to select model from a list
   output$selectModelFile <- renderUI({
     selectInput(
@@ -174,7 +195,7 @@ shinyServer(function(input, output, session) {
         "editModel" = "Select model to edit",
         "runModel" = "Select model to run"
       ),
-      choices = dir(path = "../models")[dir(path = "../models") != "templates"]
+      choices = dir(path = modelsfolder$name)[dir(path = modelsfolder$name) != "templates"]
     )
   })
   #Choose model start option and initialize model
@@ -190,7 +211,7 @@ shinyServer(function(input, output, session) {
           return()
         }
         #Check that model name does not duplicate an existing model name
-        ExistingModels_ <- dir("../models")
+        ExistingModels_ <- dir(modelsfolder$name)
         if (input$modelName %in% ExistingModels_) {
           createAlert(session = session, anchorId = "duplicateModel",
                       title = "Duplicate Model",
@@ -226,7 +247,7 @@ shinyServer(function(input, output, session) {
           return()
         }
         #Check that model name does not duplicate an existing model name
-        ExistingModels_ <- dir("../models")
+        ExistingModels_ <- dir(modelsfolder$name)
         if (input$modelName %in% ExistingModels_) {
           createAlert(session = session, anchorId = "duplicateModel",
                       title = "Duplicate Model",
@@ -840,6 +861,15 @@ shinyServer(function(input, output, session) {
   #List scenarios that are not validated
   output$invalidScenarios <- 
     renderText(scenariolist$invalid)
+  #Select growth rate type
+  output$selectGrowthRateType <- renderUI({
+    Types_ <- c("Linear", "Exponential")
+    radioButtons(
+      inputId = "Type",
+      label = "Choose Growth Rate Type",
+      choices = Types_
+    )
+  })
   #Implement the model run button
   observeEvent(
     input$runModel,
@@ -852,18 +882,18 @@ shinyServer(function(input, output, session) {
           Sc <- input$scenariosToRun
           Sys.sleep(0.2)
           for (sc in Sc) {
-            ModelPath <- file.path("../models", model$status$name)
+            ModelPath <- file.path(modelsfolder$name, model$status$name)
             ScenarioPath <- file.path(ModelPath, "scenarios", sc)
             Model_ls <- createFuzzyModel(ModelPath)
-            Scenario_ls <- createFuzzyScenario(ScenarioPath, Model_ls, OpRange = c(0.1,99.9))
-            Outputs_ls <- runFuzzyModel(Model_ls, Scenario_ls, OpRange = c(0.1,99.9), Pow = 10)
+            Scenario_ls <- createFuzzyScenario(ScenarioPath, Model_ls)
+            Outputs_ls <- runFuzzyModel(Model_ls, Scenario_ls, Type = input$Type)
             save(Outputs_ls, file = file.path(ScenarioPath, "Outputs_ls.RData"))
             incProgress(1 / length(Sc))
           }          
         }
       )
       showNotification(
-        ui = "Model Runs Complete",
+        ui = Outputs_ls$Message,
         duration = 5,
         closeButton = TRUE,
         type = "message"
@@ -941,14 +971,17 @@ shinyServer(function(input, output, session) {
     )
   })
   #Implement results plots
-  output$resultsPlot <- renderPlot({
-    Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
+  #output$resultsPlot <- renderPlot({
+  output$resultsPlot <- renderPlotly({
+      Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
     Vn <- input$variablesToPlot
     if (length(Vn) >= 2) {
-      PlotData_df <- formatOutputData(model$status$name, Sc, Vn)
-      ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
+      PlotData_df <- formatOutputData(modelsfolder$name, model$status$name, Sc, Vn)
+      # ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
+      plot <- ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
         geom_line() +
-        facet_wrap(~Scenario)      
+        facet_wrap(~Scenario) 
+      ggplotly(plot)
     } 
   })
   #Implement saving data
@@ -958,7 +991,7 @@ shinyServer(function(input, output, session) {
       Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
       Vn <- input$variablesToPlot
       if (length(Vn) >= 2) {
-        PlotData_df <- formatOutputData(model$status$name, Sc, Vn)
+        PlotData_df <- formatOutputData(modelsfolder$name, model$status$name, Sc, Vn)
         Plot <- ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
           geom_line() +
           facet_wrap(~Scenario)
@@ -969,7 +1002,7 @@ shinyServer(function(input, output, session) {
           return()
         } else {
           AnalysisPath <- 
-            file.path("../models", model$status$name, "analysis", input$analysisSaveName)
+            file.path(modelsfolder$name, model$status$name, "analysis", input$analysisSaveName)
           if (!dir.exists(AnalysisPath)) {
             dir.create(AnalysisPath)
           }
