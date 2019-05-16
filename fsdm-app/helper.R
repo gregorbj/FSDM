@@ -1,6 +1,7 @@
 #helper.R
 #Author: Brian Gregor, Oregon Systems Analytics LLC
 #Copyright: 2016, Oregon Department of Transportation 2016
+#Copyright: 2019, Brian Gregor
 #License: Apache 2
 
 
@@ -437,12 +438,6 @@ initRelationsEntry <- function(VarName){
 #' NULL
 #' @return a logical value identifying whether the plot can be created
 #' @export
-Model_ls <- list()
-Model_ls$concepts <- loadModelConcepts("Gopher")
-Model_ls$relations <- loadModelRelations("Gopher")
-FromConcept = NULL
-FromGroup = "All"
-ToGroup = "All"
 mapRelations <- 
   function(Model_ls, FromConcept = NULL, FromGroup = "All", ToGroup = "All") {
     #Extract all the concept names, variable names, and group names
@@ -964,7 +959,6 @@ validateScenario <- function(Values_df, Concepts_df) {
   )
 }
 
-
 #--------------
 #List Scenarios
 #--------------
@@ -1031,70 +1025,6 @@ listScenarios <- function(ModelName) {
 #---------------------------------------------#
 ###############################################
 
-#----------------------------
-#Calculate Causal Sensitivity
-#----------------------------
-#' Calculate causal sensitivity
-#'
-#' \code{powIncr} calculates a sensitivity value which modifies the causal
-#' effect of a concept as a function of the concept's value. The form of the
-#' fuction is an increasing power function.
-#'
-#' This function calculates causal sensitivity as a function of the relative
-#' value of a causal concept. The value increases from 0 to 1 as the input
-#' increases from 0 to 100. The value of the 'Pow' argument determines the
-#' shape of the function. The function is linear when the value is 1. When the
-#' value is greater than 1, the rate of change in the output decreases as the
-#' value of the concept increases from 0 to 100.
-#'
-#' @param x a numeric value that is in the range from 0 to 100. This is the
-#'   relative value of a causal concept.
-#' @param Pow the exponent which determines how rapidly sensitivity rises to the
-#'   maximum as the concept value increases. A value of 1 is a linear
-#'   relationship. Higher values modify the rate of change as the the input
-#'   increases from 0 to 100.
-#' @return a numeric value in the range of 0 to 1.
-#' @export
-powIncr <- function(x, Pow, OpRange) {
-  sx <- rescale(x, OpRange, c(1,99))
-  Result <- 1 - ((100 - sx) / 100)^Pow
-  #Result[sx > 50] <- 1 / (1 - (sx[sx > 50] / 100)^Pow)
-  #Result[is.infinite(Result)] <- 1 / (1 - (99 / 100)^Pow)
-  Result
-}
-
-
-#-------------------------------
-#Calculate Receiving Sensitivity
-#-------------------------------
-#' Calculate receiving sensitivity
-#'
-#' \code{powDecr} calculates a sensitivity value which modifies the receiving
-#' effect of a concept as a function of the concept's value. The form of the
-#' fuction is a decreasing power function.
-#'
-#' This function calculates causal sensitivity as a function of the relative
-#' value of a causal concept. The value decreases from 1 to 0 as the input
-#' increases from 0 to 100. The value of the 'Pow' argument determines the
-#' shape of the function. The function is linear when the value is 1. When the
-#' value is greater than 1, the rate of change in the output increases as the
-#' value of the concept increases from 0 to 100.
-#'
-#' @param x a numeric value that is in the range from 0 to 100. This is the
-#' relative value of a receiving concept.
-#' @param Pow the exponent which determines how rapidly sensitivity declines to
-#' the minimum as the concept value increases. A value of 1 is a linear
-#' relationship. Higher values increase the rate of decline.
-#' @return a numeric value in the range of 0 to 1.
-#' @export
-powDecr <- function(x, Pow, OpRange) {
-  sx <- rescale(x, OpRange, c(1,99))
-  Result <- 1 / (1 - ((100 - sx) / 100)^Pow)
-  Result[sx > 50] <- 1 - (sx[sx > 50] / 100)^Pow
-  Result
-}
-
-
 #--------------------------------------------------------
 #Rescaling a Value from an Input Range to an Output Range
 #--------------------------------------------------------
@@ -1120,6 +1050,8 @@ powDecr <- function(x, Pow, OpRange) {
 rescale <- function(Value, FromRange, ToRange) {
   ToRange[1] + diff(ToRange) * (Value - FromRange[1]) / diff(FromRange)
 }
+# Example
+# rescale(1:10, c(0,10), c(0,100))
 
 #-------------------------------------------
 #Create a Fuzzy Model from Proper JSON Files
@@ -1148,12 +1080,9 @@ rescale <- function(Value, FromRange, ToRange) {
 #' ValueRange = a data frame which provides the minimum and maximum values of
 #' each concept.
 #' @export
-# Vals = c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675, H = 0.75, VH = 1),
-# Vals = c(VL = 0.125, L = 0.25, ML = 0.5, M = 0.75, MH = 1, H = 1.25, VH = 1.5),
-
 createFuzzyModel <- 
   function(Dir,
-           Vals = c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675, H = 0.75, VH = 0.95),
+           Vals = c(VL = 0.01, L = 0.2, ML = 0.35, M = 0.5, MH = 0.67, H = 0.85, VH = 1),
            Signs = c(Positive = 1, Negative = -1)
            ) 
     {
@@ -1199,22 +1128,25 @@ createFuzzyModel <-
 #' @param Dir the a string identifying the path to the scenario directory.
 #' @param M the FSDM model object that is created by the 'createFuzzyModel'
 #' function.
+#' @param OpRange a 2-element vector identifying the operating range of the
+#' model. The default values are c(0.01, 99.99), just short of 0 and 100 to
+#' avoid values that either result in no change or infinite change.
 #' @return a list containing the following components:
 #' Cn a vector of concept variable names in the same order as the list in the
 #' fuzzy model. 
 #' StartValues a numeric vector of concept starting values scaled 
 #' to the range of 0 to 100 and in the order of Cn. 
-#' ChangeTo a numeric vector of concept starting changes scaled to the range
-#' of 0 to 100 and in the order of Cn.
+#' ChangeTo a numeric vector of concept starting changes scaled to the operating
+#' range and in the order of Cn.
 #' @export
-createFuzzyScenario <- function(Dir, M, OpRange) {
+createFuzzyScenario <- function(Dir, M, OpRange = c(0.01, 99.99)) {
   #Load table of starting concept values, check values, and create vectors for each
   Values_df <- fromJSON(file.path(Dir, "scenario.json"))
   rownames(Values_df) <- Values_df$name
   Values_df$startvalue <- as.numeric(Values_df$startvalue)
   Values_df$startchange[Values_df$startchange == "NA"] <- NA
   Values_df$startchange <- as.numeric(Values_df$startchange)
-  #Convert input starting values to range of 0 - 100
+  #Convert input starting values to operating range
   StartValues_Cn <- numeric(length(M$Cn))
   names(StartValues_Cn) <- M$Cn
   #Extract model value range
@@ -1224,9 +1156,8 @@ createFuzzyScenario <- function(Dir, M, OpRange) {
     StartVal <- Values_df[cn, "startvalue"]
     MinVal <- as.numeric(ValRng_df[cn,"min"])
     MaxVal <- as.numeric(ValRng_df[cn,"max"])
-    StartValues_Cn[cn] <- rescale(StartVal, c(MinVal, MaxVal), OpRange )
+    StartValues_Cn[cn] <- rescale(StartVal, c(MinVal, MaxVal), OpRange)
   }
-  #StartValues_Cn[StartValues_Cn == 0] <- 0.1
   #Record the change to targets
   ChangeTo_Cn <- numeric(length(M$Cn))
   names(ChangeTo_Cn) <- M$Cn
@@ -1235,7 +1166,7 @@ createFuzzyScenario <- function(Dir, M, OpRange) {
       ChangeVal <- Values_df[cn, "startchange"]
       MinVal <- as.numeric(ValRng_df[cn,"min"])
       MaxVal <- as.numeric(ValRng_df[cn,"max"])
-      ChangeTo_Cn[cn] <- rescale(ChangeVal, c(MinVal, MaxVal), OpRange )
+      ChangeTo_Cn[cn] <- rescale(ChangeVal, c(MinVal, MaxVal), OpRange)
     } else {
       ChangeTo_Cn[cn] <- NA
     }
@@ -1248,101 +1179,239 @@ createFuzzyScenario <- function(Dir, M, OpRange) {
   )
 }
 
-#-------------------------------------------------------
-#Calculate the initial effects of inputs on each concept
-#-------------------------------------------------------
-#' Calculate intial effects
-#'
-#' \code{calcInitEffects} calculates the initial changes to concepts as a
-#' result of changes in causal concepts
-#'
-#' This function takes the change in concept levels, calculates the causal
-#' sensitivities, calculates the adjusted effect of each causal concept as the
-#' product of the sensitivity and causal weight, and calculates the joint
-#' effects of multiple causes. The result is the initial proportional changes
-#' to receiving concepts.
-#'
-#' @param Levels_Cn a numeric vector of concept levels
-#' @param LevelChg_Cn a numeric vector of the percentage changes in concept.
-#' levels.
-#' @param M a fuzzy model object created with the createFuzzyModel function.
-#' @param Pow a numeric value that is the exponent used in the causal
-#' sensitivity function.
-#' @return a numeric vector containing the initial percentage change to each
-#' concept.
+#-------------------------------------
+#Function to calculate initial changes
+#-------------------------------------
+#' Calculate changes to concepts being varied in scenario
+#' 
+#' \code{calcInitChange} calculates changes to concepts being varied in a
+#' scenario
+#' 
+#' In a scenario, the values of one or a few concepts are changed and then the
+#' model is run to calculate a new equilibrium state of concept values. The
+#' changes to these 'independent' concepts are made in small increments to model
+#' assumptions about how the values will change over time. In each increment, 
+#' the change for the increment is calculated from the concept values of the
+#' previous increment, the scenario target concept values, and the number of
+#' remaining increments. Calculation of the increments assumes that change will
+#' occur at a constant exponential rate over the course of the remaining
+#' increments.
+#' 
+#' @param V_Cn a numeric vector identifying the values of concepts
+#' @param TargetV_Cn a numeric vector identifying the target values of concepts
+#' for the scenario.
+#' @param RemIncr a number identifying the remaining number of increments to 
+#' complete the scenario.
+#' @param Type a string identifying the growth function. May be either
+#' 'Exponential' or 'Linear'.
+#' @return a list having 2 named components. Ratio is the ratio of change of the
+#' 'independent' concepts. Values is a numeric vector of the value of concepts 
+#' after 'independent' concepts have been incremented.
 #' @export
-calcInitEffects <- function(Levels_Cn, LevelChg_Cn, M, Pow, OpRange) {
-  # Calculate sensitivity of each concept to cause change
-  CausalSens_Cn <- powIncr(Levels_Cn, Pow = Pow, OpRange = OpRange)
-  # Adjust the weights by the causal sensitivity
-  CausalWts_CnCn <- sweep(M$Relates, 1, CausalSens_Cn, "*")
-  # Convert percentage change into proportions
-  InputChg_Cn <- LevelChg_Cn / 100
-  # Calculate the component changes
-  Changes_CnCn <- sweep(CausalWts_CnCn, 1, InputChg_Cn, "*")
-  # Calculate the product of the changes
-  Changes_Cn <- apply(Changes_CnCn + 1, 2, prod, na.rm = TRUE) - 1
-  # Return the result
-  Changes_Cn * 100
+calcInitChange <- function(V_Cn, TargetV_Cn, RemIncr, Type = "Exponential") {
+  if (Type == "Exponential") {
+    TotChangeRatio_Cn <- TargetV_Cn / V_Cn
+    IncChangeRatio_Cn <- TotChangeRatio_Cn ^ (1 / RemIncr)
+  } else {
+    if (Type == "Linear") {
+      IncChangeAmt_Cn <- (TargetV_Cn - V_Cn) / RemIncr
+      IncChangeRatio_Cn <- (V_Cn + IncChangeAmt_Cn) / V_Cn
+    } else {
+      stop("Value of 'Type' argument must be either 'Exponential' or 'Linear'")
+    }
+  }
+  IncChangeRatio_Cn[is.na(IncChangeRatio_Cn)] <- 1
+  list(
+    Ratio = IncChangeRatio_Cn,
+    Values = V_Cn * IncChangeRatio_Cn
+  )
 }
+# Example
+# calcInitChange(1, 100, 100, Type = "Exponential")
+# calcInitChange(1, 100, 100, Type = "Linear")
 
-#--------------------------------------------------------
-#Adjust the response to inputs as function of sensitivity
-#--------------------------------------------------------
-#' Adjust concept response to change
-#'
-#' \code{adjustResponse} uses sensitivity function to adjust concept response to
-#' causal changes
-#'
-#' This function calculates receiving sensitivity values and uses them to
-#' adjusts the causal changes to concepts
-#'
-#' @param InputChg_Cn a numeric vector of the unadjusted percentage changes
-#' calculated for each concept.
-#' @param Levels_Cn a numeric vector of the levels of each concept in the range
-#' of 0 to 100.
-#' @param Pow a numeric value that is the exponent used in the receiving
-#' sensitivity function.
-#' @return a numeric vector containing the percentage change to each concept.
+#-----------------------------------------------------------------
+#Function to calculate the change ratio of posterior concept value
+#-----------------------------------------------------------------
+#' Calculate change ratio of posterior concept value
+#' 
+#' \code{calcPosteriorRatio} calculates the ratio of the new posterior concept
+#' value to the previous value due to a change in an anterior concept value
+#' 
+#' This function calculates the ratio of change in the posterior concept value
+#' in a relationship due to the proportional change the anterior concept value
+#' in the relationship where proportional change is defined as (V' / V ) - 1.
+#' The algorithm assumes that the change to the remainder for the posterior
+#' concept is proportional to the change to the remainder for the anterior
+#' concept where the remainder is the difference between the value and the value
+#' limit in the direction of the change. Since the FSDM operates in the range of
+#' 0 to 100, the lower limit is 0 and the upper limit is 100. For example if the
+#' anterior concept changes from 20 to 40, the value limit is 100 and the
+#' remainder is 80. The change to the remainder is 20 divided by 80. The change
+#' to the remainder of the posterior concept is equal to the change to the
+#' remainder of the anterior concept multiplied by the relationship weight. For
+#' example if the weight is 0.5, then the change to the remainder of the
+#' posterior concept would be half of the change to the remainder of the
+#' anterior concept. Given this assumption, the proportional change to the
+#' posterior concept due to a change in an anterior concept can be calculated as
+#' a function of the anterior concept value prior to change, the posterior
+#' concept value, the proportional change in the anterior concept value, and the
+#' weight. The calculation of the change to the posterior concept differs
+#' depending on whether the proportional change to the anterior concept is
+#' positive or negative and whether the relationship weight is positive or
+#' negative. If either are 0, the result is 0.
+#' 
+#' @param Va a numeric value in the interval (0, 100] identifying the
+#' value of the anterior concept.
+#' @param Ra a numeric value identifying the ratio of the anterior
+#' concept value and its previous value.
+#' @param Vp a numeric value in the interval (0, 100] identifying the
+#' value of the posterior concept.
+#' @param W a numeric value in the interval [-1, 1] identify the strength
+#' of the relationship between the anterior and posterior concepts in the
+#' relationship. Negative values denote inverse relationship.
+#' @return A numeric value identifying the ratio of the updated posterior
+#' concept value to the starting posterior concept value due to the change in
+#' the anterior concept value.
 #' @export
-adjustResponse <- function(InputChg_Cn, Levels_Cn, Pow, OpRange){
-  # Calculate the sensitivity of each concept to be changed
-  ReceiveSens_Cn <- powDecr(Levels_Cn, Pow = Pow, OpRange = OpRange)
-  # Calculate the adjusted input change
-  InputChg_Cn * ReceiveSens_Cn
+calcPosteriorRatio <- function(Va, Ra, Vp, W) {
+  Rp <- 0
+  VaIncTerm <- Va * (1 - (1 / Ra)) / (100 - (Va / Ra))
+  if (W > 0) {
+    if (Ra >= 1) {
+      Rp <- W * VaIncTerm * ((100 - Vp) / Vp) + 1
+    } else {
+      Rp <- W * (Ra - 1) + 1
+    }
+  } else {
+    if (Ra >= 1) {
+      Rp <- W * VaIncTerm + 1
+    } else {
+      Rp <- W * (Ra - 1) * ((100 - Vp) / Vp) + 1
+    }
+  }
+  Rp
 }
-# 
-# InputChg_Cn <- InitEffect_Cn
-# 
-# 
-# adjustResponse(InitEffect_Cn, Levels_Cn, Pow, OpRange)
+# Examples test
+# calcPosteriorRatio(20, 2, 20, 1)
+# calcPosteriorRatio(20, 2, 20, 0.5)
+# calcPosteriorRatio(20, 0.5, 80, 1)
+# calcPosteriorRatio(20, 0.5, 80, 0.5)
+# calcPosteriorRatio(50, 2, 50, -1)
+# calcPosteriorRatio(50, 2, 50, -0.5)
+# calcPosteriorRatio(25, 0.5, 50, -1)
+# calcPosteriorRatio(25, 0.5, 50, -0.5)
 
-#--------------------------------
-#Update the level of each concept
-#--------------------------------
-#' Adjust concept level
-#'
-#' \code{adjustLevel} calculates the values of all the concepts as a result of
-#' the applied changes
-#'
-#' This function calculates the values of all the concepts as a result of
-#' applying the percentage changes calculated by the adjustResponse function.
-#' The function constrains the result to the range of 0.001 to 100.
-#'
-#' @param InputChg_Cn a numeric vector of the percentage change in the level of
-#' each concept.
-#' @param Level_Cn a numeric vector of the level of each concept.
-#' @return a numeric vector of the level of each concept after it has been
-#' adjusted.
+#----------------------------------------------------------------
+#Function to calculate concept values by applying model relations
+#----------------------------------------------------------------
+#' Calculate updated concept values by applying model relations to a set of
+#' concept values and changes to those values.
+#' 
+#' \code{calcRelationEffects} updates concept values by applying
+#' relations to a set of concept values and changes to those concept values.
+#' 
+#' Since most models include cycles, the model calculations must be iterated
+#' until the concept values change very little between iterations or until a
+#' maximum number of iterations has been completed. In each iteration, the
+#' proportional changes to concept values from their starting values are
+#' updated by applying the calcPropChange function to each of ...
+#' 
+#' @param Values_Cn a numeric vector of values in the interval (0, 100]
+#' identifying the relative value of each concept.
+#' @param ValueChg_Cn a numeric vector of values identifying the proportional
+#' change in each value.
+#' @param M a list containing the FSDM model components 
+#' @return a list having 3 named components. Ratio is the ratio of change of the
+#' 'independent' concepts. Values is a numeric vector of the value of concepts 
+#' after 'independent' concepts have been incremented. MaxValueChg is a number
+#' identifying the maximum percentage change in the values of concepts between
+#' starting and ending values.
 #' @export
-adjustLevel <- function(InputChg_Cn, Level_Cn, OpRange) {
-  AdjLevel_Cn <- Level_Cn * (1 + InputChg_Cn / 100)
-  # Constrain to the operating range
-  AdjLevel_Cn[AdjLevel_Cn < OpRange[1]] <- OpRange[1]
-  AdjLevel_Cn[AdjLevel_Cn > OpRange[2]] <- OpRange[2]
-  # Return the result
-  AdjLevel_Cn
+calcEffects <- function(V_Cn, R_Cn, M) {
+  W_CnCn <- M$Relates
+  W_CnCn[is.na(W_CnCn)] <- 0
+  Cn <- colnames(W_CnCn)
+  V_Cn <- V_Cn[Cn]
+  R_Cn <- R_Cn[Cn]
+  NewRatio_Cn <- sapply(Cn, function(x) {
+    Effects_ <- 
+      mapply(calcPosteriorRatio, V_Cn, R_Cn, V_Cn[x], W_CnCn[,x])
+    sum(Effects_ - 1) + 1
+  })
+  NewValues_Cn <- NewRatio_Cn * V_Cn
+  MaxValueChg <- max(abs(NewValues_Cn / V_Cn - 1)) * 100
+  list(
+    Ratio = NewRatio_Cn,
+    Values = NewValues_Cn,
+    MaxValueChg = MaxValueChg
+  )
 }
+# Example
+# M <- createFuzzyModel("models/ThisThat")
+# S <- createFuzzyScenario("models/ThisThat/scenarios/Test1", M)
+# Effects1_ls <- calcInitChange(S$StartValues, S$ChangeTo, 100, Type = "Linear")
+# Effects2_ls <- calcEffects(Effects1_ls$Values, Effects1_ls$Ratio, M)
+# Effects3_ls <- calcEffects(Effects2_ls$Values, Effects2_ls$Ratio, M)
+# rm(M, S, Effects1_ls, Effects2_ls, Effects3_ls)
+
+#---------------
+#Solve the Model
+#---------------
+#' Solve the model in response to initial concept changes
+#' 
+#' \code{solveModel} iterates model to either find an equilibrium solution or
+#' identify if there is no equilibrium
+#' 
+#' This function solves a model for a given set of initial changes to concept.
+#' It iteratively runs the calcEffects function and with each iteration checks
+#' whether the resulting values are very nearly equal to the concept values in
+#' the previous iteration. If so, iteration is stopped. If the maximum number of
+#' iterations occurs without finding an equilibrium the iteration is also
+#' stopped. The function returns the result of the iteration and an indicator of
+#' whether an equilibrium value has been found.
+#' 
+#' @param V_Cn a numeric vector identifying the values of concepts
+#' @param TargetV_Cn a numeric vector identifying the target values of concepts
+#' for the scenario
+#' @param RemIncr the remaining number of increments to complete the scenario
+#' @param M a list containing the FSDM model components 
+#' @param Type a string identifying the growth function. May be either
+#' 'Exponential' or 'Linear'.
+#' @param MaxIter a number identifying the maximum number of iterations
+#' @param ThresholdChg a number identifying the threshold for identifying whether
+#' equilibrium has been found
+#' @return a list having 3 named components. Success is a logical identifying
+#' whether an equilibrium solution has been found. Values is a numeric vector
+#' identifying the values of concepts at the end. AllValues is a matrix
+#' identifying the values of concepts at each iteration where columns are the
+#' concepts and rows are the iterations.
+#' @export
+solveModel <- 
+  function(V_Cn, TargetV_Cn, RemIncr, M, Type, MaxIter = 100, ThresholdChg = 0.01) {
+    Change_ls <- calcInitChange(V_Cn, TargetV_Cn, RemIncr, Type)
+    AllValues_ls <- list()
+    AllValues_ls[[1]] <- Change_ls$Values
+    for (i in 1:MaxIter) {
+      Change_ls <- calcEffects(Change_ls$Values, Change_ls$Ratio, M)
+      AllValues_ls[[i + 1]] <- Change_ls$Values
+      if (Change_ls$MaxValueChg < ThresholdChg) {
+        Success = TRUE
+        break()
+      }
+      Success = FALSE
+    }
+    list(
+      Values = AllValues_ls[[length(AllValues_ls)]],
+      AllValues = do.call(rbind, AllValues_ls),
+      Success = Success,
+      NumIter = i
+    )
+  }
+# Example
+# M <- createFuzzyModel("models/Ozesmi")
+# S <- createFuzzyScenario("models/Ozesmi/scenarios/Enforce1", M)
+# Test_ls <- solveModel(S$StartValues, S$ChangeTo, 100, M, "Linear")
 
 #---------------------------------------------------------
 #Define a function that runs the fuzzy cognitive map model
@@ -1353,11 +1422,12 @@ adjustLevel <- function(InputChg_Cn, Level_Cn, OpRange) {
 #' values and starting changes.
 #'
 #' This function runs a FCM model that was created using the createFuzzyModel
-#' function with a scenarios that was created using the createFuzzyScenario function.
-#' The function uses a nested loop to calculate final values. The outer loop
-#' applies the starting changes in small increments so that the changes
-#' appropriate for applying 'point elasticities'. The inner loop iterates the
-#' model until a stable equilibrium result is achieved for each increment.
+#' function with a scenarios that was created using the createFuzzyScenario
+#' function. The function uses a nested loop to calculate final values. The
+#' outer loop applies the starting changes in small increments so that the
+#' changes appropriate for applying 'point elasticities'. The inner loop
+#' iterates the model until a stable equilibrium result is achieved for each
+#' increment.
 #'
 #' @param M a fuzzy model created using the create FuzzyModel function.
 #' @param S a scenario created using the loadScenario function.
@@ -1365,8 +1435,9 @@ adjustLevel <- function(InputChg_Cn, Level_Cn, OpRange) {
 #' for building up the starting changes.
 #' @param MaxIter a numeric value identifying the maximum number of iterations
 #' for the inner loop.
-#' @param Pow a numeric value that is the exponent used in the causal and
-#' receiving sensitivity functions.
+#' @param OpRange a 2-element vector identifying the operating range of the
+#' model. The default values are c(0.01, 99.99), just short of 0 and 100 to
+#' avoid values that either result in no change or infinite change.
 #' @return A list containing 3 components:
 #' Summary - the final relative concept values (e.g. 0 - 100) for each concept
 #' and increment;
@@ -1375,77 +1446,85 @@ adjustLevel <- function(InputChg_Cn, Level_Cn, OpRange) {
 #' Full - the relative concept values (e.g. 0 - 100) for each increment and
 #' each iteration.
 #' @export
-runFuzzyModel <- function(M, S, OpRange, Pow = 10, NumIncr = 100, MaxIter=100){
-  #Iterate through number of increments to increase inputs
-  Final_ <- list()
-  ChangeTargets_Cn <- S$ChangeTo
-  ChangeTargets_Cn[is.na(S$ChangeTo)] <- S$StartValues[is.na(S$ChangeTo)]
-  LastResults_Cn <- S$StartValues
-  ChangeDir_Cn <- sign(ChangeTargets_Cn - LastResults_Cn)
-  #ChangeDir.Cn[is.na(ChangeDir.Cn)] <- 1
+runFuzzyModel <- function(M, S, Type, NumIncr = 100){
+  Final_ls <- list()
+  ScaledSummary_ItCn <- array(NA, dim = c(NumIncr + 1, length(M$Cn)))
+  colnames(ScaledSummary_ItCn) <- M$Cn
+  Values_Cn <- S$StartValues
+  Targets_Cn <- S$ChangeTo
+  RemIncr <- NumIncr
+  ScaledSummary_ItCn[1,] <- Values_Cn
+  Success_ <- logical(NumIncr)
+  NumIter_ <- numeric(NumIncr)
   for (n in 1:NumIncr) {
-    # Set up list to store calculations for each iteration
-    Results_ <- list()
-    # Iterate the model
-    for (i in 1:MaxIter) {
-      if (i == 1){
-        PrevLevels_Cn <- LastResults_Cn
-        ChangeRates_Cn <- (ChangeTargets_Cn / PrevLevels_Cn)^(1/(NumIncr - n)) - 1
-        ChangeRates_Cn[ChangeDir_Cn == 0] <- 0
-        Levels_Cn <- PrevLevels_Cn * (1 + ChangeRates_Cn)
-        #Levels.Cn <- PrevLevels.Cn + ChangeDir.Cn * abs(ChangeTargets.Cn - PrevLevels.Cn) * n / NumIncr
-        Results_[[i]] <- Levels_Cn
-      } else {
-        LevelChg_Cn <- 100 * (Levels_Cn - PrevLevels_Cn) / PrevLevels_Cn
-        LevelChg_Cn[is.nan(LevelChg_Cn)] <- 0
-        InitEffect_Cn <- calcInitEffects(Levels_Cn, LevelChg_Cn, M, Pow, OpRange)
-        AdjEffect_Cn <- adjustResponse(InitEffect_Cn, Levels_Cn, Pow, OpRange)
-        PrevLevels_Cn <- Levels_Cn
-        Levels_Cn <- adjustLevel(AdjEffect_Cn, Levels_Cn, OpRange)
-        Results_[[i]] <- Levels_Cn
-        # If absolute values of all of the adjusted effects are less than 0.01 then break out of the loop
-        if( all( abs(AdjEffect_Cn) < 1 ) & i > 10 ) break
-      }
-    }
-    # Put the results into a matrix and return
-    if (n == 1) {
-      Results_ItCn <- rbind( S$StartValues, do.call(rbind, Results_) )
-      rownames(Results_ItCn) <- 0:(nrow(Results_ItCn)- 1)
+    IncrValues_ls <- solveModel(Values_Cn, Targets_Cn, RemIncr, M, Type)
+    Values_Cn <- IncrValues_ls$Values
+    Final_ls[[n]] <- IncrValues_ls$AllValues
+    Success_[n] <- IncrValues_ls$Success
+    NumIter_[n] <- IncrValues_ls$NumIter
+    ScaledSummary_ItCn[n+1,] <- Values_Cn
+    RemIncr <- RemIncr - 1
+  }
+  RescaledSummary_ItCn <- sapply(colnames(ScaledSummary_ItCn), function(x) {
+    rescale(ScaledSummary_ItCn[,x], c(0.01, 99.99), unlist(M$ValueRange[x,]))
+  })
+  Message <- local({
+    NumFail <- sum(!Success_)
+    AveIter <- mean(NumIter_)
+    if (NumFail == 0) {
+      paste0("Run Complete. ",
+             "Solution converged for all increments. ",
+             "Average number of iterations per increment = ", AveIter)
     } else {
-      Results_ItCn <- do.call(rbind, Results_)
+      paste0("Run Complete with Problems. ",
+             "Solution didn't converge for ", NumFail, " increments. ",
+             "Average number of iterations per increment = ", AveIter)
     }
-    Final_[[n]] <- Results_ItCn
-    LastResults_Cn <- Results_ItCn[nrow(Results_ItCn),]
-    #Break out if any targets achieved
-    PosDir <- ChangeDir_Cn == 1
-    NegDir <- ChangeDir_Cn == -1
-    if (any(LastResults_Cn[PosDir] > ChangeTargets_Cn[PosDir], na.rm = TRUE))
-      break()
-    if (any(LastResults_Cn[NegDir] < ChangeTargets_Cn[NegDir], na.rm = TRUE))
-      break()
-    #Break out if all values are close to targets
-    LastResults_Cx <- LastResults_Cn[PosDir | NegDir]
-    ChangeTargets_Cx <- ChangeTargets_Cn[PosDir | NegDir]
-    if (all(abs(LastResults_Cx - ChangeTargets_Cx) / ChangeTargets_Cx < 0.01))
-      break()
-  }
-  #Prepare summary table of final results
-  FinalResults_ItCn <- rbind(Final_[[1]][1,], do.call(rbind, lapply(Final_, function(x) x[nrow(x),])))
-  rownames(FinalResults_ItCn) <- as.character(0:(nrow(FinalResults_ItCn)-1))
-  #Rescale summary table to initial input range
-  RescaleResults_ItCn <- FinalResults_ItCn * 0
-  for (cn in M$Cn) {
-    RescaleResults_ItCn[,cn] <-
-      sapply(FinalResults_ItCn[,cn], function(x) {
-        rescale(x, OpRange, unlist(M$ValueRange[cn,]))
-      })
-  }
+  })
   list(
-    ScaledSummary = rescale(FinalResults_ItCn, OpRange, c(0,100)),
-    RescaledSummary = RescaleResults_ItCn,
-    ScaledFull = lapply(Final_, function(x) rescale(x, OpRange, c(0,100)))
+    ScaledSummary = ScaledSummary_ItCn,
+    RescaledSummary = RescaledSummary_ItCn,
+    ScaledFull = Final_ls,
+    Message = Message, 
+    Success = Success_,
+    NumIter = NumIter_
   )
 }
+# Example
+# M <- createFuzzyModel("models/Ozesmi")
+# S <- createFuzzyScenario("models/Ozesmi/scenarios/Enforce1", M)
+# Outputs_ls <- runFuzzyModel(M, S, "Linear", 10)
+# save(Outputs_ls, file = file.path("models/Ozesmi/scenarios/Enforce1", "Outputs_ls.RData"))
+# S <- createFuzzyScenario("models/Ozesmi/scenarios/Enforce2", M)
+# Outputs_ls <- runFuzzyModel(M, S, "Linear", 10)
+# save(Outputs_ls, file = file.path("models/Ozesmi/scenarios/Enforce2", "Outputs_ls.RData"))
+# S <- createFuzzyScenario("models/Ozesmi/scenarios/Enforce3", M)
+# Outputs_ls <- runFuzzyModel(M, S, "Linear", 10)
+# save(Outputs_ls, file = file.path("models/Ozesmi/scenarios/Enforce3", "Outputs_ls.RData"))
+# S <- createFuzzyScenario("models/Ozesmi/scenarios/Wetlands1", M)
+# Outputs_ls <- runFuzzyModel(M, S, "Linear", 10)
+# save(Outputs_ls, file = file.path("models/Ozesmi/scenarios/Wetlands1", "Outputs_ls.RData"))
+# matplot(Outputs_ls$ScaledSummary, type = "l")
+# 
+# M <- createFuzzyModel("models/ThisThat")
+# S <- createFuzzyScenario("models/ThisThat/scenarios/Test1", M)
+# Test_ls <- runFuzzyModel(M, S, "Linear", 100)
+# matplot(Test_ls$ScaledSummary[,c("This", "That")], type = "l")
+# matplot(Test_ls$ScaledSummary[,c("This2", "That2")], type = "l")
+# matplot(Test_ls$ScaledSummary[,c("This2", "That4")], type = "l")
+# matplot(Test_ls$ScaledSummary[,c("This3", "That5")], type = "l")
+# matplot(Test_ls$ScaledSummary[,c("This", "This4", "That5")], type = "l")
+# matplot(Test_ls$ScaledSummary[,c("This", "This2", "That3")], type = "l")
+# 
+# M <- createFuzzyModel("models/Futures2")
+# S <- createFuzzyScenario("models/Futures2/scenarios/IncreaseCapacity50", M)
+# Test_ls <- runFuzzyModel(M, S, "Linear", 100)
+# matplot(Test_ls$ScaledSummary[,c("RelAutoCap", "Congestn", "AutoSpd", "Proximity", "Density")], type = "l")
+# 
+# M <- createFuzzyModel("models/Futures2")
+# S <- createFuzzyScenario("models/Futures2/scenarios/ReduceAutonomousCost100", M)
+# Test_ls <- runFuzzyModel(M, S, "Exponential", 100)
+# matplot(Test_ls$ScaledSummary[,c("AutonCost", "Congestn", "AutoSpd", "VMT", "Density")], type = "l")
 
 
 ###############################################
@@ -1496,8 +1575,8 @@ idScenWithOutputs <- function(ModelName) {
 #' @return A data frame having columns identifying the scenario, concept,
 #' iteration, scaled values, and rescaled values.
 #' @export
-formatOutputData <- function(ModelName, Sc, Vn) {
-  ScenPath <- file.path("../models", ModelName, "scenarios")
+formatOutputData <- function(ModelDir, ModelName, Sc, Vn) {
+  ScenPath <- file.path(ModelDir, ModelName, "scenarios")
   ModelOut_ls <- list()
   for (sc in Sc) {
     DataPath <- file.path(ScenPath, sc, "Outputs_ls.RData")
@@ -1509,12 +1588,12 @@ formatOutputData <- function(ModelName, Sc, Vn) {
   }
   Results_ls <- 
     lapply(ModelOut_ls, function(x) {
-      Sc <- rownames(x$Scaled)
-      Scaled_mx <- x$Scaled[Sc, Vn]
-      Rescaled_mx <- x$Rescaled[Sc, Vn]
+      NumIter <- nrow(x$Scaled)
+      Scaled_mx <- x$Scaled[, Vn]
+      Rescaled_mx <- x$Rescaled[, Vn]
       data.frame(
-        Concept = rep(Vn, each = length(Sc)),
-        Iteration = rep(1:length(Sc), length(Vn)),
+        Concept = rep(Vn, each = NumIter),
+        Iteration = rep(1:NumIter, length(Vn)),
         Scaled = as.vector(Scaled_mx),
         Rescaled = as.vector(Rescaled_mx)
       )
@@ -1526,4 +1605,8 @@ formatOutputData <- function(ModelName, Sc, Vn) {
   rownames(Results_df) <- NULL
   Results_df
 }
-
+# Example
+# Results_df <- 
+#   formatOutputData("models", "Ozesmi",
+#                    c("Enforce1", "Enforce2", "Enforce3", "Wetlands1"),
+#                    c("Fish", "Wetlands", "Enforcement", "Income", "Pollution"))
