@@ -18,6 +18,8 @@ library(shinyFiles)
 library(fs)
 library(filesstrings)
 library(plotly)
+source("../../R/FSDM.R")
+
 
 
 #SHINY SERVER FUNCTION
@@ -29,7 +31,7 @@ shinyServer(function(input, output, session) {
   #CREATE OBJECTS TO STORE MODEL AND SCENARIO STATE
   #------------------------------------------------
   #Reactive object to store current state that interface responds to
-  model <- reactiveValues(status = NULL, concepts = NULL, relations = NULL)
+  model <- reactiveValues(status = NULL, concepts = NULL, relations = NULL, folder = "")
   #Reactive object to store model history (unlimited undo)
   history <- reactiveValues(status = NULL, concepts = NULL, relations = NULL)
   #Reactive object to represent concepts table
@@ -52,9 +54,9 @@ shinyServer(function(input, output, session) {
   #Create a reactive object to keep track of various conditions
   is <- reactiveValues(newconcept = FALSE)
   #Create a reactive object to keep track of the project folder
-  projectfolder <- reactiveValues(name = NULL)
+  projectfolder <- reactiveValues(name = "")
   #Create a reactive object to keep track of the models folder
-  modelsfolder <- reactiveValues(name = NULL)
+  modelsfolder <- reactiveValues(name = NULL, models = "")
 
 
   #-----------------------------------------------------
@@ -172,15 +174,24 @@ shinyServer(function(input, output, session) {
   #IMPLEMENT INTERFACE FOR STARTING MODEL
   #--------------------------------------
   #Code to implement selection of project directory
+  output$projectFolder <- renderText({""})
   observeEvent(
     input$ProjectFolder,
     {
-      Volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+      Volumes <- getVolumes() #c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
       shinyDirChoose(input, "ProjectFolder", roots = Volumes, session = session)
       projectfolder$name <- as.character(parseDirPath(Volumes, input$ProjectFolder))
-      modelsfolder$name <- file.path(projectfolder$name, "models")
-      output$projectFolder <- renderText({projectfolder$name})
-      if (!file.exists("models")) create_dir(modelsfolder$name)
+      if (length(projectfolder$name) != 0) {
+        ModelsFolder <- file.path(projectfolder$name, "models")
+        if (!file.exists(ModelsFolder)) {
+          dir.create(ModelsFolder)
+        }
+        model$folder <- ModelsFolder
+        modelsfolder$name <- ModelsFolder
+        output$projectFolder <- renderText({projectfolder$name})
+      } else {
+        output$projectFolder <- renderText({""})
+      }
     }
   )
   #Define GUI element to select model from a list
