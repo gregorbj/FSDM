@@ -1,4 +1,4 @@
-#fsdm.R
+#FSDM.R
 #Author: Brian Gregor, Oregon Systems Analytics LLC
 #Copyright: 2016, Oregon Department of Transportation 2016
 #Copyright: 2019, Brian Gregor
@@ -30,9 +30,9 @@
 #' @param Author a string identifying the author's name.
 #' @return a list containing values for name, parent, created, and lastedit.
 #' @export
-initializeNewModel <- function(ModelName, Author) {
+initializeNewModel <- function(ModelsDir, ModelName, Author) {
   #Create directory for model
-  NewDir <- file.path("../models", ModelName)
+  NewDir <- file.path(ModelsDir, ModelName)
   dir.create(NewDir)
   #Create and save a status list
   Attribution <-
