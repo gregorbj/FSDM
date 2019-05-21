@@ -57,6 +57,11 @@ shinyServer(function(input, output, session) {
   projectfolder <- reactiveValues(name = "")
   #Create a reactive object to keep track of the models folder
   modelsfolder <- reactiveValues(name = NULL, models = "")
+  #Create a reactive object to keep track of graph display options
+  grdisplay <- reactiveValues(
+    fromgroup = "All",
+    togroup = "All"
+  )
 
 
   #-----------------------------------------------------
@@ -466,6 +471,12 @@ shinyServer(function(input, output, session) {
       choices = c("All", model$concepts$group)
     )
   })
+  observeEvent(
+    input$causalGroup,
+    {
+      grdisplay$fromgroup <- input$causalGroup
+    }
+  )
   #Define dropdown element to select affected group
   output$selectAffectedGroup <- renderUI({
     selectInput(
@@ -474,6 +485,12 @@ shinyServer(function(input, output, session) {
       choices = c("All", model$concepts$group)
     )
   })
+  observeEvent(
+    input$affectedGroup,
+    {
+      grdisplay$togroup <- input$affectedGroup
+    }
+  )
   #Define dropdown element to select causal concept from a list
   output$selectCausalConcept <- renderUI({
     selectInput(
@@ -652,8 +669,8 @@ shinyServer(function(input, output, session) {
     Dot_ <-
       makeDot(Relations_ls = model$relations,
               Concepts_df = model$concepts,
-              RowGroup = input$causalGroup,
-              ColGroup = input$affectedGroup,
+              RowGroup = grdisplay$fromgroup,
+              ColGroup = grdisplay$togroup,
               orientation = input$graphOrientation,
               rankdir = input$graphLayout,
               shape = input$nodeShape,
