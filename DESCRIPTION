@@ -1,0 +1,31 @@
+Package: FSDM
+Type: Package
+Title: Fuzzy Systems Dynamics Model
+Version: 1.0
+Date: 05/17/19
+Author: Brian Gregor [aut, cre],
+Maintainer: Brian Gregor <gregorb@or-analytics.com>
+Copyright: Brian Gregor, Oregon DOT
+URL: https://github.com/gregorbj/FSDM
+Description: This package implements the Fuzzy Systems Dynamics Model which
+    is similar to fuzzy cognitive maps (FCM) in representing a model of causal
+    effects as a digraph but uses different mathematical and algorithmic approach to 
+    calculating the effects of the change in one concept on the change in another.
+    Whereas the in the FCM approach the states of concepts are related to one 
+    another, in the FSDM approach the changes in the states of concepts are related
+    to one another. The changes in state are a function of edge weights in the
+    digraph which identify the causal strength and the respective values of the
+    anterior and posterior concepts in the relationship. Because change in the model
+    is a function of both the value of concepts and their changes, approach is
+    somewhat similar to the systems dynamics model approach but with a simpler
+    representation of dynamic relationships.
+License: Apache License 2.0
+LazyData: TRUE
+Depends: R (>= 3.4.0)
+Imports:
+    usethis
+Suggests:
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 6.1.1
