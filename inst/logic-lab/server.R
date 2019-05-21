@@ -719,7 +719,7 @@ shinyServer(function(input, output, session) {
         "copyScenario" = "Select Scenario to Copy",
         "editScenario" = "Select Scenario to Edit"
       ),
-      choices = dir(path = paste0("../models/", model$status$name, "/scenarios"))
+      choices = dir(file.path(modelsfolder$name, model$status$name, "scenarios"))
     )
   })
   #Choose model start option and initialize model
@@ -877,7 +877,7 @@ shinyServer(function(input, output, session) {
   #Define checkbox GUI element to select valid scenarios from list
   output$selectScenariosToRun <- renderUI({
     Scenarios_ <-
-      dir(path = file.path("../models/", model$status$name, "scenarios"))
+      dir(path = file.path(modelsfolder$name, model$status$name, "scenarios"))
     checkboxGroupInput(
       inputId = "scenariosToRun",
       label = "Check Scenarios to Run",
