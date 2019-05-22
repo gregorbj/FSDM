@@ -440,9 +440,15 @@ shinyUI(
         "Edit Scenario Values",
         sidebarLayout(
           sidebarPanel(
+            h4("Set Number of Change Increments"),
+            h4("Number of Increments: ", textOutput("scenarioincrements", inline = TRUE)),
+            numericInput("increments", "Change Increments To:",
+                         value = 10,
+                         min = 1, max = 100, step = 1),
             br(),
-            h4("Concept: ", textOutput("scenarioConcept", inline = TRUE)),
             hr(),
+            h4("Edit Concept Values"),
+            h4("Concept: ", textOutput("scenarioConcept", inline = TRUE)),
             textInput("conceptStartValue", "Concept Starting Value"),
             textInput("conceptStartChange", "Concept Starting Change"),
             textareaInput("conceptValuesDescription", "Concept Values Description"),
