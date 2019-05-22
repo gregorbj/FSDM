@@ -46,7 +46,7 @@ shinyServer(function(input, output, session) {
       description = "")
   #Create a reactive object to store scenario data in
   scenario <-
-    reactiveValues(status = NULL, values = NULL, history = NULL)
+    reactiveValues(status = NULL, values = NULL, history = NULL, increments = 10)
   #Create a reactive object to represent scenario table
   scenariotable <- reactiveValues(values = NULL)
   #Create a reactive object to store names of scenarios
@@ -156,6 +156,7 @@ shinyServer(function(input, output, session) {
     scenario$status <- NULL
     scenario$values <- NULL
     scenario$history <- NULL
+    scenario$increments <- 10
     scenariotable$values <- NULL
     scenariolist$valid <- ""
     scenariolist$invalid <- ""
@@ -244,13 +245,13 @@ shinyServer(function(input, output, session) {
         resetModel()
         ModelAuthor <-
           paste0(input$firstName, " ", input$lastName, " (", input$organization, ")")
-        model$status <- initializeNewModel(input$modelName, ModelAuthor)
-        model$concepts <- loadModelConcepts(input$modelName)
+        model$status <- initializeNewModel(modelsfolder$name, input$modelName, ModelAuthor)
+        model$concepts <- loadModelConcepts(modelsfolder$name, input$modelName)
         model$relations <- list()
         updateConceptsTable()
         updateConceptForm(1)
         saveLastState()
-        scenariolist$runs <- listScenarios(model$status$name)$runs
+        scenariolist$runs <- listScenarios(modelsfolder$name, model$status$name)$runs
         clearScenarioForm()
       }
       if (input$modelAction == "copyModel") {
@@ -281,13 +282,15 @@ shinyServer(function(input, output, session) {
         ModelAuthor <-
           paste0(input$firstName, " ", input$lastName, " (", input$organization, ")")
         model$status <-
-          initializeCopyModel(input$modelName, input$modelFileName, ModelAuthor, input$copyScenarios)
-        model$concepts <- loadModelConcepts(input$modelName)
-        model$relations <- loadModelRelations(input$modelName)
+          initializeCopyModel(
+            modelsfolder$name, input$modelName, input$modelFileName,
+            ModelAuthor, input$copyScenarios)
+        model$concepts <- loadModelConcepts(modelsfolder$name, input$modelName)
+        model$relations <- loadModelRelations(modelsfolder$name, input$modelName)
         updateConceptsTable()
         updateConceptForm(1)
         saveLastState()
-        scenariolist$run <- listScenarios(model$status$name)$Run
+        scenariolist$run <- listScenarios(modelsfolder$name, model$status$name)$Run
         clearScenarioForm()
       }
       if (input$modelAction == "editModel") {
@@ -303,24 +306,24 @@ shinyServer(function(input, output, session) {
         resetModel()
         ModelAuthor <-
           paste0(input$firstName, " ", input$lastName, " (", input$organization, ")")
-        model$status <- loadModelStatus(input$modelFileName, ModelAuthor)
-        model$concepts <- loadModelConcepts(input$modelFileName)
-        model$relations <- loadModelRelations(input$modelFileName)
+        model$status <- loadModelStatus(modelsfolder$name, input$modelFileName, ModelAuthor)
+        model$concepts <- loadModelConcepts(modelsfolder$name, input$modelFileName)
+        model$relations <- loadModelRelations(modelsfolder$name, input$modelFileName)
         updateConceptsTable()
         updateConceptForm(1)
         saveLastState()
-        scenariolist$run <- listScenarios(model$status$name)$Run
+        scenariolist$run <- listScenarios(modelsfolder$name, model$status$name)$Run
         clearScenarioForm()
       }
       if (input$modelAction == "runModel") {
         resetModel()
-        model$status <- loadModelStatus(input$modelFileName)
-        model$concepts <- loadModelConcepts(input$modelFileName)
-        model$relations <- loadModelRelations(input$modelFileName)
+        model$status <- loadModelStatus(modelsfolder$name, input$modelFileName)
+        model$concepts <- loadModelConcepts(modelsfolder$name, input$modelFileName)
+        model$relations <- loadModelRelations(modelsfolder$name, input$modelFileName)
         updateConceptsTable()
         updateConceptForm(1)
         saveLastState()
-        scenariolist$run <- listScenarios(model$status$name)$Run
+        scenariolist$run <- listScenarios(modelsfolder$name, model$status$name)$Run
         clearScenarioForm()
       }
     }
@@ -701,7 +704,7 @@ shinyServer(function(input, output, session) {
       CurrentNote <-
         paste(Author, Timestamp, Notation, sep = " | ")
       model$status$notes <- c(CurrentNote, model$status$notes)
-      saveModel(model)
+      saveModel(modelsfolder$name, model)
       updateTextAreaInput(session = session, inputId = "modelNotes", value = "")
     }
   )
@@ -750,6 +753,7 @@ shinyServer(function(input, output, session) {
         }
         ScenInit_ls <-
           initializeCopyScenario(
+            modelsfolder$name,
             model$status$name,
             model$concepts$variable,
             input$scenarioName,
@@ -757,6 +761,7 @@ shinyServer(function(input, output, session) {
             )
         scenario$status <- ScenInit_ls$status
         scenario$values <- ScenInit_ls$values
+        scenario$increments <- ScenInit_ls$increments
         updateScenarioTable()
         saveLastScenarioState()
         updateScenarioForm(1)
@@ -764,12 +769,14 @@ shinyServer(function(input, output, session) {
       if (input$scenarioAction == "editScenario") {
         ScenInit_ls <-
           loadScenario(
+            modelsfolder$name,
             model$status$name,
             model$concepts$variable,
             input$scenarioFileName
             )
         scenario$status <- ScenInit_ls$status
         scenario$values <- ScenInit_ls$values
+        scenario$increments <- ScenInit_ls$increments
         updateScenarioTable()
         saveLastScenarioState()
         updateScenarioForm(1)
@@ -790,10 +797,10 @@ shinyServer(function(input, output, session) {
   #----------------------------------------
   #Update concept form based on what is selected in table
   observeEvent(
-    input$scenarioTable_rows_selected,
+    scenario$increments,
     {
-      RowNum <- input$scenarioTable_rows_selected
-      updateScenarioForm(RowNum)
+      output$scenarioincrements <- renderText({scenario$increments})
+
     }
   )
   #Implement the updateScenario button
@@ -811,6 +818,8 @@ shinyServer(function(input, output, session) {
       #Update scenario values
       scenario$values <- scenariotable$values
       scenario$status$lastedit <- as.character(Sys.time())
+      #Update scenario increments
+      scenario$increments <- input$increments
     }
   )
   #Implement the undoScenarioAction button
@@ -839,7 +848,7 @@ shinyServer(function(input, output, session) {
           closeButton = TRUE,
           type = "message"
         )
-        saveScenario(scenario)
+        saveScenario(modelsfolder$name, scenario)
       } else {
         scenario$status$validated <- ""
         VMsg <- paste(Validation_ls$Errors, collapse = "\n")
@@ -849,7 +858,7 @@ shinyServer(function(input, output, session) {
           closeButton = TRUE,
           type = "error"
         )
-        saveScenario(scenario)
+        saveScenario(modelsfolder$name, scenario)
       }
     }
   )
@@ -869,7 +878,7 @@ shinyServer(function(input, output, session) {
   observeEvent(
     input$listScenarios,
     {
-      ScenarioList_ls <- listScenarios(model$status$name)
+      ScenarioList_ls <- listScenarios(modelsfolder$name, model$status$name)
       scenariolist$valid <- ScenarioList_ls$Valid
       scenariolist$invalid <- ScenarioList_ls$Invalid
     }
@@ -939,9 +948,10 @@ shinyServer(function(input, output, session) {
   observeEvent(
     input$revalidate,
     {
-      Sc <- listScenarios(model$status$name)$All
+      Sc <- listScenarios(modelsfolder$name, model$status$name)$All
       for (sc in Sc) {
         Scenario <- loadScenario(
+          modelsfolder$name,
           model$status$name,
           model$concepts$variable,
           sc
@@ -950,10 +960,10 @@ shinyServer(function(input, output, session) {
         IsValid <- Validation_ls$Valid
         if (IsValid) {
           Scenario$status$validated <- Validation_ls$TimeStamp
-          saveScenario(Scenario)
+          saveScenario(modelsfolder$name, Scenario)
         } else {
           Scenario$status$validated <- ""
-          saveScenario(Scenario)
+          saveScenario(modelsfolder$name, Scenario)
         }
       }
     }
@@ -967,7 +977,7 @@ shinyServer(function(input, output, session) {
   observeEvent(
     input$listRunScenarios,
     {
-      scenariolist$run <- listScenarios(model$status$name)$Run
+      scenariolist$run <- listScenarios(modelsfolder$name, model$status$name)$Run
     }
   )
   #Define GUI element to select scenario 1 from a list
