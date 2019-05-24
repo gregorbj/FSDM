@@ -31,7 +31,7 @@
 #' @param ModelName a string identifying the model name.
 #' @param Author a string identifying the author's name.
 #' @return a list containing values for name, parent, created, and lastedit.
-#' @import jsonlite
+#' @importFrom jsonlite toJSON
 #' @export
 initializeNewModel <- function(ModelsDir, ModelName, Author) {
   #Create directory for model
@@ -95,7 +95,7 @@ initializeNewModel <- function(ModelsDir, ModelName, Author) {
 #' scenarios.
 #' @return a model status list for the model which includes information about
 #' the copied model.
-#' @import jsonlite
+#' @importFrom jsonlite fromJSON toJSON
 #' @export
 initializeCopyModel <- function(ModelsDir, ModelName, CopyModelName, Author, CopyScenarios = FALSE) {
   NewDir <- file.path(ModelsDir, ModelName)
@@ -156,8 +156,9 @@ initializeCopyModel <- function(ModelsDir, ModelName, CopyModelName, Author, Cop
 #'
 #' @param ModelsDir a string identifying the path to the models folder in which
 #' @param ModelName a string representation of the model name.
+#' @param Author a string identifying the author's name
 #' @return a list containing values for name, parent, created, and lastedit.
-#' @import jsonlite
+#' @importFrom jsonlite fromJSON
 #' @export
 loadModelStatus <- function(ModelsDir, ModelName, Author = NULL){
   ModelDir <-  file.path(ModelsDir, ModelName)
@@ -184,7 +185,7 @@ loadModelStatus <- function(ModelsDir, ModelName, Author = NULL){
 #'
 #' @param ModelsDir a string identifying the path to the models folder in which
 #' @param ModelName a string representation of the model name.
-#' @import jsonlite
+#' @importFrom jsonlite fromJSON
 #' @return a data frame containing the model concept information.
 #' @export
 loadModelConcepts <- function(ModelsDir, ModelName){
@@ -205,7 +206,7 @@ loadModelConcepts <- function(ModelsDir, ModelName){
 #'
 #' @param ModelsDir a string identifying the path to the models folder in which
 #' @param ModelName a string representation of the model name.
-#' @import jsonlite
+#' @importFrom jsonlite fromJSON
 #' @return a data frame containing the model relations information.
 #' @export
 loadModelRelations <- function(ModelsDir, ModelName){
@@ -230,7 +231,7 @@ loadModelRelations <- function(ModelsDir, ModelName){
 #' @return no return value. Has side effect of saving the model status list,
 #' model concepts data frame, and model relations data frame as JSON-formatted
 #' files.
-#' @import jsonlite
+#' @importFrom jsonlite toJSON
 #' @export
 saveModel <- function(ModelsDir, ModelData) {
   ModelName <- ModelData$status$name
@@ -450,7 +451,6 @@ initRelationsEntry <- function(VarName){
 #' @param Model_ls a list that includes components for model concepts and
 #' relations
 #' @param FromConcept the name of a selected causal concept or NULL
-#' @param ToConcept the name of a selected receiving concept or NULL
 #' @param FromGroup the name of the group of the causal concepts to display or
 #' NULL
 #' @param ToGroup the name of the group of the receiving concepts to display or
@@ -714,7 +714,7 @@ makeDot <-
 #' @param NumIncr an integer identifying the number of growth increments for
 #' the scenario.
 #' @return a list containing a status list and a scenario values data frame.
-#' @import jsonlite
+#' @importFrom jsonlite toJSON
 #' @export
 initializeNewScenario <-
   function(ModelsDir, ModelName, ScenarioName, Concepts_df, NumIncr) {
@@ -826,7 +826,7 @@ conformScenario <- function(ConceptVars_, ScenarioValues_df){
 #' @param NumIncr an integer identifying the number of growth increments for the
 #' scenario.
 #' @return a list containing a status list and a scenario values data frame.
-#' @import jsonlite
+#' @importFrom jsonlite toJSON
 #' @export
 initializeCopyScenario <-
   function(ModelsDir, ModelName, ConceptVars_, ScenarioName, CopyScenarioName, NumIncr) {
@@ -874,10 +874,10 @@ initializeCopyScenario <-
 #' @param ModelsDir a string identifying the path to the models folder in which
 #' @param ModelName a string representation of the model name.
 #' @param ConceptVars_ a string vector of the model concept variable names.
-#' @param ScenarioName a string representation of the scenario name.
+#' @param ScenarioFileName a string representation of the scenario name.
 #' @return a list containing a status list, a scenario values data frame, and
 #' the number of growth increments for the scenario.
-#' @import jsonlite
+#' @importFrom jsonlite fromJSON
 #' @export
 loadScenario <- function(ModelsDir, ModelName, ConceptVars_, ScenarioFileName){
   #Identify the scenario directory
@@ -911,6 +911,7 @@ loadScenario <- function(ModelsDir, ModelName, ConceptVars_, ScenarioFileName){
 #' @param ScenarioData a list having status and values components.
 #' @return no return value. Has side effect of saving the scenario status list
 #' and values data frame.
+#' @importFrom jsonlite toJSON
 #' @export
 saveScenario <- function(ModelsDir, ScenarioData) {
   ModelName <- ScenarioData$status$model
@@ -1030,6 +1031,7 @@ validateScenario <- function(Values_df, Concepts_df) {
 #' that were properly validated, a vector of the names of scenarios that were
 #' not validated, a vector of the names of all scenarios, and a vector
 #' of the names of scenarios that have outputs.
+#' @importFrom jsonlite fromJSON
 #' @export
 listScenarios <- function(ModelsDir, ModelName) {
   ScenariosDir <- file.path(ModelsDir, ModelName, "scenarios")
@@ -1116,8 +1118,10 @@ rescale <- function(Value, FromRange, ToRange) {
 #'
 #' @param Dir a string identifying the path to the directory where the
 #' JSON-formatted text files that specify a model are located.
-#' @param FuzzyVals a named numeric vector that relates linguistic relationships
+#' @param Vals a named numeric vector that relates linguistic relationships
 #' to numeric values.
+#' @param Signs a named numeric vector which associates values with descriptions
+#' of relationship signs. Default is c(Positive = 1, Negative = -1).
 #' @return A list containing the following components:
 #' Cn = a string vector containing the names of the model concepts;
 #' Group = a named string vector containing the group name for each concept;
@@ -1127,7 +1131,7 @@ rescale <- function(Value, FromRange, ToRange) {
 #' the fuzzy relationships between concepts (e.g. low, medium, high);
 #' ValueRange = a data frame which provides the minimum and maximum values of
 #' each concept.
-#' @import jsonlite
+#' @importFrom jsonlite fromJSON
 #' @export
 createFuzzyModel <-
   function(Dir,
@@ -1187,7 +1191,7 @@ createFuzzyModel <-
 #' to the range of 0 to 100 and in the order of Cn.
 #' ChangeTo a numeric vector of concept starting changes scaled to the operating
 #' range and in the order of Cn.
-#' @import jsonlite
+#' @importFrom jsonlite fromJSON
 #' @export
 createFuzzyScenario <- function(Dir, M, OpRange = c(0.01, 99.99)) {
   #Load table of starting concept values, check values, and create vectors for each
@@ -1378,9 +1382,9 @@ calcPosteriorRatio <- function(Va, Ra, Vp, W) {
 #' the proportional change differences is 0.5 and the total proportional change
 #' is 1.5.
 #'
-#' @param Values_Cn a numeric vector of values in the interval (0, 100]
+#' @param V_Cn a numeric vector of values in the interval (0, 100]
 #' identifying the relative value of each concept.
-#' @param ValueChg_Cn a numeric vector of values identifying the proportional
+#' @param R_Cn a numeric vector of values identifying the proportional
 #' change in each value.
 #' @param M a list containing the FSDM model components
 #' @return a list having 3 named components. Ratio is the ratio of change of the
@@ -1609,7 +1613,7 @@ runFuzzyModel <- function(M, S, Type){
 #' of all the model scenarios that have model outputs.
 #'
 #' @param ModelsDir a string identifying the path to the models folder in which
-#' @param Model a string representation of the model name.
+#' @param ModelName a string representation of the model name.
 #' @return a string vector of the names of scenarios having model outputs.
 #' @export
 idScenWithOutputs <- function(ModelsDir, ModelName) {
@@ -1634,8 +1638,8 @@ idScenWithOutputs <- function(ModelsDir, ModelName) {
 #' in one column and the corresponding concept names, scenario names, and
 #' iterations are in separate columns.
 #'
-#' @param ModelsDir a string identifying the path to the models folder in which
-#' @param Model a string representation of the model name.
+#' @param ModelDir a string identifying the path to the models folder in which
+#' @param ModelName a string representation of the model name.
 #' @param Sc a vector of the names of scenarios to include.
 #' @param Vn the variable names for the concepts to include.
 #' @return A data frame having columns identifying the scenario, concept,
@@ -1644,10 +1648,14 @@ idScenWithOutputs <- function(ModelsDir, ModelName) {
 formatOutputData <- function(ModelDir, ModelName, Sc, Vn) {
   ScenPath <- file.path(ModelDir, ModelName, "scenarios")
   ModelOut_ls <- list()
+  assignLoad <- function(filename) {
+    load(filename)
+    get(ls()[ls() != "filename"])
+  }
   for (sc in Sc) {
     DataPath <- file.path(ScenPath, sc, "Outputs_ls.RData")
     if (file.exists(DataPath)) {
-      load(DataPath)
+      Outputs_ls <- assignLoad(DataPath)
       ModelOut_ls[[sc]]$Scaled <- Outputs_ls$ScaledSummary
       ModelOut_ls[[sc]]$Rescaled <- Outputs_ls$RescaledSummary
     }
@@ -1680,7 +1688,7 @@ formatOutputData <- function(ModelDir, ModelName, Sc, Vn) {
 
 ###############################################
 #---------------------------------------------#
-#             RUN LOGIC LABORATORY            #
+#                SET UP AND USE               #
 #---------------------------------------------#
 ###############################################
 
@@ -1698,9 +1706,29 @@ formatOutputData <- function(ModelDir, ModelName, Sc, Vn) {
 #' directory of the installed package. This function starts the Logic Laboratory
 #' application. The function has no parameters and returns no results.
 #'
-#' @import shiny shinyBS jsonlite DT ggplot2 DiagrammeR shinyFiles fs filesstrings plotly
 #' @export
 runLogicLab <- function() {
   shiny::runApp(appDir = system.file("logic-lab", package = "FSDM"))
 }
 
+
+#----------------------------------------------------------
+#Define function to copy demo model files from FSDM package
+#----------------------------------------------------------
+#' Copy demo model files from FSDM package
+#'
+#' \code{copyDemoModels} copies demo FSDM model files to specified folder
+#'
+#' This function copies demo FSDM model files from the FSDM package to a
+#' specified folder. If a folder named 'models' is located in the specified
+#' folder, the function copies the demo models to that folder. If the folder
+#' does not exist, then it is created and the demo models copied to it.
+#'
+#' @param ToFolder a string identifying the path to the folder on the users
+#' computer that the demo files are to be copied to.
+#'
+#' @export
+copyDemoModels <- function(ToFolder) {
+  FromFolder <- system.file("models", package = "FSDM")
+  file.copy(FromFolder, ToFolder, recursive = TRUE)
+}
