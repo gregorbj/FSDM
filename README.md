@@ -17,12 +17,12 @@ if (is.null(getOption("repos")["CRAN"])) {
 if (!library("devtools", logical.return = TRUE)) install.packages("devtools")
 #Install the FSDM package from GitHub
 #This also installs all other packages that FSDM depends on
-devtools:install_github("gregorbj/FSDM")
+devtools::install_github("gregorbj/FSDM")
 
 ```
 
 ## Running 
-You may wish to start by first creating a project folder and then copying the demonstration models and scenarios from the installed package to your project folder. Once you have created your project folder, you can copy the demonstration models/scenarios to it by entering the following in the R console. Replace the *"PROJECT_FOLDER_PATH"* in the code with the full path to the project folder (e.g. "C:My_FSDM_Project").
+You may wish to start by first creating a project folder and then copying the demonstration models and scenarios from the installed package to your project folder. Once you have created your project folder, you can copy the demonstration models/scenarios to it by entering the following in the R console. Replace the *"PROJECT_FOLDER_PATH"* in the code with the full path to the project folder (e.g. "C:/My_FSDM_Project").
 ```
 copyDemoModels("PROJECT_FOLDER_PATH")
 ```
@@ -33,6 +33,8 @@ FSDM::runLogicLab()
 ```
 
 Starting the Logic Laboratory in this way will open up the application in a web browser window using the default web browser for your computer. Note that the application does not work correctly in the Microsoft Edge browser because the graphs showing results will not be displayed. The application does work in the Chrome, Firefox, and Brave browsers. It may work in other browsers as well but has not been tested. If your default browser is Microsoft Edge, you will need to change it to one of the others.
+
+Note that after you close the browser window that the Logic Laboratory is running in, when you return focus to the R console window you need to press the escape key on your keyboard to return to the console command line.
 
 The users guide in the *documentation* folder of the installed package provides information on how to use the Logic Laboratory. It is out of date with respect to some of the features and look of some of the screens, but will provide you with some basic orientation. It will be updated in the coming weeks and made available as a standard R vignette that will be easy to call up from the R console.
 
