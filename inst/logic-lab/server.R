@@ -18,8 +18,7 @@ library(shinyFiles)
 library(fs)
 library(filesstrings)
 library(plotly)
-source("../../R/FSDM.R")
-
+library(FSDM)
 
 
 #SHINY SERVER FUNCTION
@@ -1007,13 +1006,21 @@ shinyServer(function(input, output, session) {
     )
   })
   #Implement results plots
-  #output$resultsPlot <- renderPlot({
+  # output$resultsPlot <- renderPlot({
+  #   Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
+  #   Vn <- input$variablesToPlot
+  #   if (length(Vn) >= 2) {
+  #     PlotData_df <- formatOutputData(modelsfolder$name, model$status$name, Sc, Vn)
+  #     ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
+  #       geom_line() +
+  #       facet_wrap(~Scenario)
+  #   }
+  # })
   output$resultsPlot <- renderPlotly({
-      Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
+    Sc <- c(input$scenarioPlot1, input$scenarioPlot2)
     Vn <- input$variablesToPlot
     if (length(Vn) >= 2) {
       PlotData_df <- formatOutputData(modelsfolder$name, model$status$name, Sc, Vn)
-      # ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
       plot <- ggplot(PlotData_df, aes(x=Iteration, y=Scaled, color=Concept)) +
         geom_line() +
         facet_wrap(~Scenario)
@@ -1038,12 +1045,23 @@ shinyServer(function(input, output, session) {
           return()
         } else {
           AnalysisPath <-
-            file.path(modelsfolder$name, model$status$name, "analysis", input$analysisSaveName)
+            file.path(modelsfolder$name, model$status$name, "analysis")
           if (!dir.exists(AnalysisPath)) {
             dir.create(AnalysisPath)
           }
-          ggsave(file.path(AnalysisPath, "plot.png"), plot = Plot, device = "png")
-          write.csv(PlotData_df, file = file.path(AnalysisPath, "data.csv"), row.names = FALSE)
+          AnalysisSavePath <- file.path(AnalysisPath, input$analysisSaveName)
+          if (!dir.exists(AnalysisSavePath)) {
+            dir.create(AnalysisSavePath)
+          }
+          ggsave(file.path(AnalysisSavePath, "plot.png"), plot = Plot, device = "png",
+                 width = 6.5, height = 4, units = "in")
+          write.csv(PlotData_df, file = file.path(AnalysisSavePath, "data.csv"), row.names = FALSE)
+          showNotification(
+            ui = "Saving analysis files",
+            duration = 2,
+            closeButton = TRUE,
+            type = "message"
+          )
         }
       }
     }
