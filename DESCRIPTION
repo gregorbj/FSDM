@@ -1,8 +1,8 @@
 Package: FSDM
 Type: Package
 Title: Fuzzy Systems Dynamics Model
-Version: 1.0
-Date: 05/17/19
+Version: 0.7
+Date: 05/24/19
 Author: Brian Gregor [aut, cre],
 Maintainer: Brian Gregor <gregorb@or-analytics.com>
 Copyright: Brian Gregor, Oregon DOT
@@ -19,11 +19,20 @@ Description: This package implements the Fuzzy Systems Dynamics Model which
     is a function of both the value of concepts and their changes, approach is
     somewhat similar to the systems dynamics model approach but with a simpler
     representation of dynamic relationships.
-License: Apache License 2.0
+License: file LICENSE
 LazyData: TRUE
 Depends: R (>= 3.4.0)
 Imports:
-    usethis
+    usethis,
+    DT,
+    DiagrammeR,
+    filesstrings,
+    fs,
+    jsonlite,
+    plotly,
+    shiny,
+    shinyBS,
+    shinyFiles
 Suggests:
     knitr,
     rmarkdown
