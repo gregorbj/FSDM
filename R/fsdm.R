@@ -615,73 +615,94 @@ makeDot <-
            orientation = "Portrait", rankdir = "Top-to-Bottom", shape = "box",
            Show = "label")
   {
-    #Make matrices of relations and labels
-    Relates_ls <- makeAdjacencyMatrix(Relations_ls, Type = "Values")
-    Cn <- Concepts_df$variable
-    Vals <- c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675,
-             H = 0.75, VH = 0.95)
-    Signs <- c(Positive = 1, Negative = -1)
-    Relates.CnCn <-
-      apply(Relates_ls$Weight[Cn,Cn], 2, function(x) Vals[x]) *
-      apply(Relates_ls$Direction[Cn,Cn], 2, function(x) Signs[x])
-    rownames(Relates.CnCn) <- Cn
-    Labels.CnCn <- Relates_ls$Weight[Cn,Cn]
-    #Create row and column indices for selected row and column groups
-    if (RowGroup != "All") {
-      Cr <- Cn[Concepts_df$group %in% RowGroup]
-    } else {
-      Cr <- Cn
-    }
-    if (ColGroup != "All") {
-      Cc <- Cn[Concepts_df$group %in% ColGroup]
-    } else {
-      Cc <- Cn
-    }
-    #Select relations and labels matrices for selected rows and columns
-    Relates.CrCc <- Relates.CnCn[Cr,Cc]
-    Labels.CrCc <- Labels.CnCn[Cr,Cc]
-    Concepts. <- unique(Cr)
-    #Remove rows and columns that are all NA values
-    # AllNARows_ <- apply(Relates.CrCc, 1, function(x) all(is.na(x)))
-    # AllNACols_ <- apply(Relates.CrCc, 2, function(x) all(is.na(x)))
-    # Relates.CrCc <- Relates.CrCc[!AllNARows_, !AllNACols_]
-    # Labels.CrCc <- Labels.CrCc[!AllNARows_, !AllNACols_]
-    #Update Cr and Cc and identify unique concepts
-    Cr <- rownames(Relates.CrCc)
-    Cc <- colnames(Relates.CrCc)
-    #Convert rankdir argument
-    if (rankdir == "Top-to-Bottom") rankdir <- "TB"
-    if (rankdir == "Left-to-Right") rankdir <- "LR"
-    #Make DOT data
-    Dot_ <-
-      paste("digraph {\n orientation =", orientation, ";\n rankdir =", rankdir, ";\n")
-    for (concept in Concepts.) {
-      Dot_ <- paste(Dot_, concept, "[ shape =", shape, "];\n")
-    }
-    for (cr in Cr) {
-      for (cc in Cc) {
-        Value <- Relates.CrCc[cr,cc]
-        if (!is.na(Value)) {
-          if (Show == "label") {
-            Label <- Labels.CrCc[cr,cc]
-          } else {
-            Label <- Value
-          }
-          if (Value != 0) {
-            if (Value > 0) {
-              Dot_ <- paste0(Dot_, cr, " -> ", cc, "[ label=", Label, " ];\n")
+
+    #Check whether there are any relations
+    HasRelations <- any(makeAdjacencyMatrix(Relations_ls))
+    #Code for defining DOT data if relations have been defined
+    if (HasRelations) {
+      #Identify concepts
+      Cn <- Concepts_df$variable
+      #Make matrices of relations and labels
+      Relates_ls <- makeAdjacencyMatrix(Relations_ls, Type = "Values")
+      Vals <- c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675,
+                H = 0.75, VH = 0.95)
+      Signs <- c(Positive = 1, Negative = -1)
+      Relates.CnCn <-
+        apply(Relates_ls$Weight[Cn,Cn], 2, function(x) Vals[x]) *
+        apply(Relates_ls$Direction[Cn,Cn], 2, function(x) Signs[x])
+      rownames(Relates.CnCn) <- Cn
+      Labels.CnCn <- Relates_ls$Weight[Cn,Cn]
+      #Create row and column indices for selected row and column groups
+      if (RowGroup != "All") {
+        Cr <- Cn[Concepts_df$group %in% RowGroup]
+      } else {
+        Cr <- Cn
+      }
+      if (ColGroup != "All") {
+        Cc <- Cn[Concepts_df$group %in% ColGroup]
+      } else {
+        Cc <- Cn
+      }
+      #Select relations and labels matrices for selected rows and columns
+      Relates.CrCc <- Relates.CnCn[Cr,Cc]
+      Labels.CrCc <- Labels.CnCn[Cr,Cc]
+      Concepts. <- unique(Cr)
+      #Update Cr and Cc and identify unique concepts
+      Cr <- rownames(Relates.CrCc)
+      Cc <- colnames(Relates.CrCc)
+      #Convert rankdir argument
+      if (rankdir == "Top-to-Bottom") rankdir <- "TB"
+      if (rankdir == "Left-to-Right") rankdir <- "LR"
+      #Initialize DOT data
+      Dot_ <-
+        paste("digraph {\n orientation =", orientation, ";\n rankdir =", rankdir, ";\n")
+      #Add concept descriptions to DOT
+      for (concept in Concepts.) {
+        Dot_ <- paste(Dot_, concept, "[ shape =", shape, "];\n")
+      }
+      #Add relationships to DOT
+      for (cr in Cr) {
+        for (cc in Cc) {
+          Value <- Relates.CrCc[cr,cc]
+          if (!is.na(Value)) {
+            if (Show == "label") {
+              Label <- Labels.CrCc[cr,cc]
             } else {
-              Dot_ <-
-                paste0(
-                  Dot_, cr, " -> ", cc, "[ color=red, fontcolor=red, style=dashed, label=", Label, " ];\n"
-                )
+              Label <- Value
+            }
+            if (Value != 0) {
+              if (Value > 0) {
+                Dot_ <- paste0(Dot_, cr, " -> ", cc, "[ label=", Label, " ];\n")
+              } else {
+                Dot_ <-
+                  paste0(
+                    Dot_, cr, " -> ", cc, "[ color=red, fontcolor=red, style=dashed, label=", Label, " ];\n"
+                  )
+              }
             }
           }
         }
       }
+      #Terminate the DOT data
+       Dot_ <- paste(Dot_, "}")
+
+    #Otherwise define DOT data without relations
+    } else {
+      #Convert rankdir argument
+      if (rankdir == "Top-to-Bottom") rankdir <- "TB"
+      if (rankdir == "Left-to-Right") rankdir <- "LR"
+      #Initialize DOT data
+      Dot_ <-
+        paste("digraph {\n orientation =", orientation, ";\n rankdir =", rankdir, ";\n")
+      #Add concepts to DOT data
+      Cn <- Concepts_df$variable
+      for (concept in Cn) {
+        Dot_ <- paste(Dot_, concept, "[ shape =", shape, "];\n")
+      }
+      #Terminate the DOT data
+      Dot_ <- paste(Dot_, "}")
     }
-    Dot_ <- paste(Dot_, "}")
-    #Return the resulting DOT description
+    #Return the result
     Dot_
   }
 
