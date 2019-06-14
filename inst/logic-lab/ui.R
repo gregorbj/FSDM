@@ -451,7 +451,7 @@ shinyUI(
             h4("Edit Concept Values"),
             h4("Concept: ", textOutput("scenarioConcept", inline = TRUE)),
             textInput("conceptStartValue", "Concept Starting Value"),
-            textInput("conceptStartChange", "Concept Starting Change"),
+            textInput("conceptStartChange", "Concept Ending Value"),
             textareaInput("conceptValuesDescription", "Concept Values Description"),
             actionButton("updateScenario", "Update"),
             actionButton("undoScenarioAction", "Undo"),
