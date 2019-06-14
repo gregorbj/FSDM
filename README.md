@@ -21,6 +21,8 @@ devtools::install_github("gregorbj/FSDM")
 
 ```
 
+**Note for Linux users**: The XML packages is one of the dependencies that will be installed if it is not already installed on your system. Successful installation requires that the *lib2xml-dev* software library be installed on your system in order for the XML package to compile from the source files. I suggest that before you run *devtools:install_github("gregorbj/FSDM")* you check whether the XML package is installed and install it if it is not. If the *lib2xml-dev* software library is not installed on your computer and you're running Ubuntu and Debian, you can install by running *sudo apt-get install libxml2-dev* the Linux terminal program you use.
+
 ## Running 
 You may wish to start by first creating a project folder and then copying the demonstration models and scenarios from the installed package to your project folder. Once you have created your project folder, you can copy the demonstration models/scenarios to it by entering the following in the R console. Replace the *"PROJECT_FOLDER_PATH"* in the code with the full path to the project folder (e.g. "C:/My_FSDM_Project").
 ```
@@ -38,4 +40,5 @@ Note that after you close the browser window that the Logic Laboratory is runnin
 
 The users guide in the *documentation* folder of the installed package provides information on how to use the Logic Laboratory. It is out of date with respect to some of the features and look of some of the screens, but will provide you with some basic orientation. It will be updated in the coming weeks and made available as a standard R vignette that will be easy to call up from the R console.
 
+**Note**: The Logic Laboratory currently only allows you to be working on one model in a session. If you want to switch from working on one model to another, you must exit the Logic Laboratory and restart it. Note that you can work on any number of scenarios in one session however.
 
