@@ -586,9 +586,11 @@ shinyServer(function(input, output, session) {
              direction = input$causalDirection,
              weight = input$causalStrength,
              description = input$causalDesc)
-      Effects_ls <-
-        model$relations[[CausalIdx]]$affects
-      if (length(Effects_ls) != 0) {
+      # Effects_ls <-
+      #   model$relations[[CausalIdx]]$affects
+      # if (length(Effects_ls) != 0) {
+      if (length(model$relations) != 0) {
+        Effects_ls <- model$relations[[CausalIdx]]$affects
         AffectedConcepts_ <- unlist(lapply(Effects_ls, function(x) x$variable))
         if (AffectedConcept %in% AffectedConcepts_) {
           Effects_ls[[which(AffectedConcepts_ == AffectedConcept)]] <-
@@ -724,7 +726,7 @@ shinyServer(function(input, output, session) {
       choices = dir(file.path(modelsfolder$name, model$status$name, "scenarios"))
     )
   })
-  #Choose model start option and initialize model
+  #Choose model start option and initialize scenario
   observeEvent(
     input$startScenario,
     {
@@ -736,7 +738,12 @@ shinyServer(function(input, output, session) {
           return()
         }
         ScenInit_ls <-
-          initializeNewScenario(model$status$name, input$scenarioName, model$concepts)
+          initializeNewScenario(
+            modelsfolder$name,
+            model$status$name,
+            input$scenarioName,
+            model$concepts,
+            NumIncr = 10)
         scenario$status <- ScenInit_ls$status
         scenario$values <- ScenInit_ls$values
         updateScenarioTable()
@@ -756,7 +763,8 @@ shinyServer(function(input, output, session) {
             model$status$name,
             model$concepts$variable,
             input$scenarioName,
-            input$scenarioFileName
+            input$scenarioFileName,
+            NumIncr = 10
             )
         scenario$status <- ScenInit_ls$status
         scenario$values <- ScenInit_ls$values
@@ -794,12 +802,19 @@ shinyServer(function(input, output, session) {
   #----------------------------------------
   #IMPLEMENT INTERFACE FOR EDITING SCENARIO
   #----------------------------------------
-  #Update concept form based on what is selected in table
+  #Input number of increments
   observeEvent(
     scenario$increments,
     {
       output$scenarioincrements <- renderText({scenario$increments})
-
+    }
+  )
+  #Update concept form based on what is selected in table
+  observeEvent(
+    input$scenarioTable_rows_selected,
+    {
+      RowNum <- input$scenarioTable_rows_selected
+      updateScenarioForm(RowNum)
     }
   )
   #Implement the updateScenario button
