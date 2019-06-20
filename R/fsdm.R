@@ -290,16 +290,23 @@ formatConceptTable <- function(Concepts_df) {
 #' meaning that it does not.
 #'
 #' @param Relations_ls a list of FSDM relations
-#' @param Type a string identifying the type of matrix to create. "Logical"
+#' @param Type a string identifying the type of result to create. "Logical"
 #' produces a matrix where the existence of a relationship is noted with TRUE
 #' and FALSE. "Values" produces a list of two matrices where one matrix
 #' identifies the causal weitht of each relationship and a second matrix
 #' identifies the causal direction of each relationship.
 #' @return a matrix of logical values or string values
 #' @export
-makeAdjacencyMatrix <- function(Relations_ls, Type = "Logical") {
+makeAdjacencyMatrix <-
+  function(Relations_ls, Type = "Logical",
+           Signs = c(Positive = 1, Negative = -1),
+           Types = c(Proportion = "P", Amount = "A")) {
+
+  #Vector of concept names
   Var_ <- unlist(lapply(Relations_ls, function(x) x$name))
-  #If type is "Logical" return a logical matrix
+
+  #If type is "Logical" return a logical matrix identifying relation existence
+  #---------------------------------------------------------------------------
   if (Type == "Logical") {
     Affected_ls <- lapply(Relations_ls, function(x) {
       Affected_ <- unlist(lapply(x$affects, function(y) y$variable))
@@ -314,8 +321,11 @@ makeAdjacencyMatrix <- function(Relations_ls, Type = "Logical") {
     }
     return(Relations_mx)
   }
-  #If type is "Values" return a list of matrices of direction and values
+
+  #If type is "Values" return a list of matrices of values, directions, & types
+  #----------------------------------------------------------------------------
   if (Type == "Values") {
+
     #Matrix of effects directions
     Direction_ls <- lapply(Relations_ls, function(x) {
       Direction_ <- unlist(lapply(x$affects, function(y) y$direction))
@@ -330,6 +340,7 @@ makeAdjacencyMatrix <- function(Relations_ls, Type = "Logical") {
     for (name in names(Direction_ls)) {
       Direction_mx[name, names(Direction_ls[[name]])] <- Direction_ls[[name]]
     }
+
     #Matrix of effects weights
     Weight_ls <- lapply(Relations_ls, function(x) {
       Weight_ <- unlist(lapply(x$affects, function(y) y$weight))
@@ -344,9 +355,51 @@ makeAdjacencyMatrix <- function(Relations_ls, Type = "Logical") {
     for (name in names(Weight_ls)) {
       Weight_mx[name, names(Weight_ls[[name]])] <- Weight_ls[[name]]
     }
-    return(list(Direction = Direction_mx, Weight = Weight_mx))
+
+    #Matrix of effects types
+    Type_ls <- lapply(Relations_ls, function(x) {
+      Type_ <- unlist(lapply(x$affects, function(y) y$type))
+      names(Type_) <- unlist(lapply(x$affects, function(y) y$variable))
+      Type_
+    })
+    names(Type_ls) <- Var_
+    Type_mx <-
+      array(NA,
+            dim = c(length(Var_), length(Var_)),
+            dimnames = list(Var_, Var_))
+    for (name in names(Type_ls)) {
+      Type_mx[name, names(Type_ls[[name]])] <- Type_ls[[name]]
+    }
+
+    #Matrix of signed weights
+    Sign_mx <- apply(Direction_mx, 2, function(x) Signs[x])
+    Relates_mx <- Weight_mx * Sign_mx
+
+    #Make labels for graph
+    makeLabel <- function(A, B) {
+      if (is.na(A) | is.na(B)) {
+        NA
+      } else {
+        paste0(Types[B], A)
+      }
+    }
+    Labels_mx <- array(
+      mapply(makeLabel, as.vector(Relates_mx), as.vector(Type_mx)),
+      dim = c(length(Var_), length(Var_)),
+      dimnames = list(Var_, Var_))
+
+    #Return the results
+    return(list(
+      Direction = Direction_mx,
+      Weight = Weight_mx,
+      Type = Type_mx,
+      Relates = Relates_mx,
+      Labels = Labels_mx))
   }
 }
+# library(jsonlite)
+# Relations_ls <- loadModelRelations("inst/models", "Ozesmi")
+# Adj_ls <- makeAdjacencyMatrix(Relations_ls, Type = "Values")
 
 #-----------------------------------------------------------------
 #Extract Data on Effect Relationships of a Selected Causal Concept
@@ -358,7 +411,7 @@ makeAdjacencyMatrix <- function(Relations_ls, Type = "Logical") {
 #'
 #' The function extracts the data on the effect relationships of an identified
 #' causal concept. This includes the names of the affected concepts and the
-#' respective effect directions, magnitudes, and descriptions.
+#' respective effect directions, magnitudes, types, and descriptions.
 #'
 #' @param Model_ls a list that includes components for model concepts and
 #' relations
@@ -394,6 +447,7 @@ getEffects <- function(Model_ls, ConceptName) {
       variable = unlist(lapply(SelectEffects_ls, function(x) x$variable)),
       direction = unlist(lapply(SelectEffects_ls, function(x) x$direction)),
       weight = unlist(lapply(SelectEffects_ls, function(x) x$weight)),
+      type = unlist(lapply(SelectEffects_ls, function(x) x$type)),
       description = unlist(lapply(SelectEffects_ls, function(x) x$description))
     )
     Result$name <- varToName(Result$variable)
@@ -401,6 +455,20 @@ getEffects <- function(Model_ls, ConceptName) {
   #Return the result
   Result
 }
+Model_ls <- list(
+  concepts <- loadModelConcepts("inst/models", "Ozesmi"),
+  relations <- loadModelRelations("inst/models", "Ozesmi")
+)
+# Model_ls <- list(
+#   concepts = loadModelConcepts("inst/models", "Ozesmi"),
+#   relations = loadModelRelations("inst/models", "Ozesmi")
+# )
+# getEffects(Model_ls, "Fish")
+# getEffects(Model_ls, "Enforcement")
+# getEffects(Model_ls, "Income")
+# getEffects(Model_ls, "Wetlands")
+# getEffects(Model_ls, "Pollution")
+# rm(Model_ls)
 
 #------------------------------
 #Initialize New Relations Entry
@@ -429,6 +497,7 @@ initRelationsEntry <- function(VarName){
     variable = "",
     direction = "",
     weight = "",
+    type = "",
     description = ""
   )
   Lst
@@ -615,23 +684,16 @@ makeDot <-
            orientation = "Portrait", rankdir = "Top-to-Bottom", shape = "box",
            Show = "label")
   {
-
     #Check whether there are any relations
     HasRelations <- any(makeAdjacencyMatrix(Relations_ls))
     #Code for defining DOT data if relations have been defined
     if (HasRelations) {
       #Identify concepts
       Cn <- Concepts_df$variable
-      #Make matrices of relations and labels
+      #Make matrices of relations, types, and labels
       Relates_ls <- makeAdjacencyMatrix(Relations_ls, Type = "Values")
-      Vals <- c(VL = 0.1, L = 0.25, ML = 0.375, M = 0.5, MH = 0.675,
-                H = 0.75, VH = 0.95)
-      Signs <- c(Positive = 1, Negative = -1)
-      Relates.CnCn <-
-        apply(Relates_ls$Weight[Cn,Cn], 2, function(x) Vals[x]) *
-        apply(Relates_ls$Direction[Cn,Cn], 2, function(x) Signs[x])
-      rownames(Relates.CnCn) <- Cn
-      Labels.CnCn <- Relates_ls$Weight[Cn,Cn]
+      Relates.CnCn <- Relates_ls$Relates[Cn,Cn]
+      Labels.CnCn <- Relates_ls$Labels[Cn,Cn]
       #Create row and column indices for selected row and column groups
       if (RowGroup != "All") {
         Cr <- Cn[Concepts_df$group %in% RowGroup]
@@ -643,7 +705,7 @@ makeDot <-
       } else {
         Cc <- Cn
       }
-      #Select relations and labels matrices for selected rows and columns
+      #Select relations, types, and labels matrices for selected rows and columns
       Relates.CrCc <- Relates.CnCn[Cr,Cc]
       Labels.CrCc <- Labels.CnCn[Cr,Cc]
       Concepts. <- unique(Cr)
@@ -672,11 +734,11 @@ makeDot <-
             }
             if (Value != 0) {
               if (Value > 0) {
-                Dot_ <- paste0(Dot_, cr, " -> ", cc, "[ label=", Label, " ];\n")
+                Dot_ <- paste0(Dot_, cr, " -> ", cc, "[ label=", "'", Label, "'", " ];\n")
               } else {
                 Dot_ <-
                   paste0(
-                    Dot_, cr, " -> ", cc, "[ color=red, fontcolor=red, style=dashed, label=", Label, " ];\n"
+                    Dot_, cr, " -> ", cc, "[ color=red, fontcolor=red, style=dashed, label=", "'", Label, "'", " ];\n"
                   )
               }
             }
@@ -705,6 +767,11 @@ makeDot <-
     #Return the result
     Dot_
   }
+# library(DiagrammeR)
+# Concepts_df <- loadModelConcepts("inst/models", "Ozesmi")
+# Relations_ls <- loadModelRelations("inst/models", "Ozesmi")
+# Dot_ <- makeDot(Relations_ls, Concepts_df)
+# grViz(Dot_)
 
 
 ###############################################
@@ -1156,36 +1223,48 @@ rescale <- function(Value, FromRange, ToRange) {
 #' @export
 createFuzzyModel <-
   function(Dir,
-           Vals = c(VL = 0.01, L = 0.2, ML = 0.35, M = 0.5, MH = 0.67, H = 0.85, VH = 1),
-           Signs = c(Positive = 1, Negative = -1)
-           )
-    {
-  #Read model concept files and identify variable names and groups
-  #---------------------------------------------------------------
-  Concepts_df <- fromJSON(file.path(Dir, "concepts.json"))
-  Cn <- Concepts_df$variable
-  Group.Cn <- Concepts_df$group
-  names(Group.Cn) <- Cn
-  #Create relationships matrix and assign numeric values
-  #-----------------------------------------------------
-  Relations_ls <-
-    makeAdjacencyMatrix(fromJSON(file.path(Dir, "relations.json"), simplifyDataFrame = FALSE),
-                        Type = "Values")
-  #Adjacency matrix of numeric values
-  Relates.CnCn <-
-    apply(Relations_ls$Weight[Cn,Cn], 2, function(x) Vals[x]) *
-    apply(Relations_ls$Direction[Cn,Cn], 2, function(x) Signs[x])
-  rownames(Relates.CnCn) <- Cn
-  #Make labels for graph
-  Labels.CnCn <- Relations_ls$Weight[Cn,Cn]
-  #Extract the value range for all concepts
-  ValRng_df <- Concepts_df$values[,c("min","max")]
-  ValRng_df$min <- as.numeric(ValRng_df$min)
-  ValRng_df$max <- as.numeric(ValRng_df$max)
-  rownames(ValRng_df) <- Cn
-  # Return all the model components in a list
-  list(Cn=Cn, Group=Group.Cn, Relates=Relates.CnCn, Labels=Labels.CnCn, ValueRange=ValRng_df)
-}
+           Signs = c(Positive = 1, Negative = -1),
+           Types = c(Proportion = "P", Amount = "A")
+  )
+  {
+    #Read model concept files and identify variable names and groups
+    #---------------------------------------------------------------
+    Concepts_df <- fromJSON(file.path(Dir, "concepts.json"))
+    Cn <- Concepts_df$variable
+    Group.Cn <- Concepts_df$group
+    names(Group.Cn) <- Cn
+    #Create relationships matrix and assign numeric values
+    #-----------------------------------------------------
+    Relations_ls <-
+      makeAdjacencyMatrix(fromJSON(file.path(Dir, "relations.json"), simplifyDataFrame = FALSE),
+                          Type = "Values")
+    #Adjacency matrix of numeric values
+    Values.CnCn <- Relations_ls$Weight[Cn,Cn]
+    Signs.CnCn <- apply(Relations_ls$Direction[Cn,Cn], 2, function(x) Signs[x])
+    Relates.CnCn <- Values.CnCn * Signs.CnCn
+    #Adjacency matrix of relationship types
+    Types.CnCn <- apply(Relations_ls$Type[Cn,Cn], 2, function(x) Types[x])
+    #Make labels for graph
+    makeLabel <- function(A, B) {
+      if (is.na(A) | is.na(B)) {
+        NA
+      } else {
+        paste(A, B)
+      }
+    }
+    Labels.CnCn <- array(
+      mapply(makeLabel, as.vector(Relates.CnCn), as.vector(Types.CnCn)),
+      dim = c(length(Cn), length(Cn)),
+      dimnames = list(Cn, Cn))
+    #Extract the value range for all concepts
+    ValRng_df <- Concepts_df$values[,c("min","max")]
+    ValRng_df$min <- as.numeric(ValRng_df$min)
+    ValRng_df$max <- as.numeric(ValRng_df$max)
+    rownames(ValRng_df) <- Cn
+    # Return all the model components in a list
+    list(Cn=Cn, Group=Group.Cn, Relates=Relates.CnCn, Labels=Labels.CnCn, ValueRange=ValRng_df)
+  }
+#M <- createFuzzyModel("inst/models/Ozesmi")
 
 #--------------------------------------
 #Create a Scenario Object to be Modeled
