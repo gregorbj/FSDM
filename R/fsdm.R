@@ -1238,31 +1238,15 @@ createFuzzyModel <-
     Relations_ls <-
       makeAdjacencyMatrix(fromJSON(file.path(Dir, "relations.json"), simplifyDataFrame = FALSE),
                           Type = "Values")
-    #Adjacency matrix of numeric values
-    Values.CnCn <- Relations_ls$Weight[Cn,Cn]
-    Signs.CnCn <- apply(Relations_ls$Direction[Cn,Cn], 2, function(x) Signs[x])
-    Relates.CnCn <- Values.CnCn * Signs.CnCn
-    #Adjacency matrix of relationship types
-    Types.CnCn <- apply(Relations_ls$Type[Cn,Cn], 2, function(x) Types[x])
-    #Make labels for graph
-    makeLabel <- function(A, B) {
-      if (is.na(A) | is.na(B)) {
-        NA
-      } else {
-        paste(A, B)
-      }
-    }
-    Labels.CnCn <- array(
-      mapply(makeLabel, as.vector(Relates.CnCn), as.vector(Types.CnCn)),
-      dim = c(length(Cn), length(Cn)),
-      dimnames = list(Cn, Cn))
+    Relates.CnCn <- Relations_ls$Relates[Cn,Cn]
+    Types.CnCn <- Relations_ls$Type[Cn,Cn]
     #Extract the value range for all concepts
     ValRng_df <- Concepts_df$values[,c("min","max")]
     ValRng_df$min <- as.numeric(ValRng_df$min)
     ValRng_df$max <- as.numeric(ValRng_df$max)
     rownames(ValRng_df) <- Cn
     # Return all the model components in a list
-    list(Cn=Cn, Group=Group.Cn, Relates=Relates.CnCn, Labels=Labels.CnCn, ValueRange=ValRng_df)
+    list(Cn=Cn, Group=Group.Cn, Relates=Relates.CnCn, Types=Types.CnCn, ValueRange=ValRng_df)
   }
 #M <- createFuzzyModel("inst/models/Ozesmi")
 
