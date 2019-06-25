@@ -1816,3 +1816,17 @@ copyDemoModels <- function(ToFolder) {
   FromFolder <- system.file("models", package = "FSDM")
   file.copy(FromFolder, ToFolder, recursive = TRUE)
 }
+
+dynamicWeight <- function(X, K, C, Min, Max) {
+  calcLogistic <- function(X, K, C) { 1 / (1 + exp(-K * (X - C))) }
+  lowerBnd <- calcLogistic(0, K, C)
+  upperBnd <- calcLogistic(100, K, C)
+  Value <- calcLogistic(X, K, C)
+  rescale(Value, c(lowerBnd, upperBnd), c(Min, Max))
+}
+
+X_ <- 0:100
+plot(X_, dynamicWeight(X_, 0.01, 50, 0, 1))
+
+
+
