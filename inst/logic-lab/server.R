@@ -183,7 +183,7 @@ shinyServer(function(input, output, session) {
   observeEvent(
     input$ProjectFolder,
     {
-      Volumes <- getVolumes() #c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+      Volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()()) #getVolumes()
       shinyDirChoose(input, "ProjectFolder", roots = Volumes, session = session)
       projectfolder$name <- as.character(parseDirPath(Volumes, input$ProjectFolder))
       if (length(projectfolder$name) != 0) {
