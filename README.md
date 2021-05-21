@@ -1,6 +1,8 @@
 # FSDM  
 Fuzzy Systems Dynamics Modeling Package
 
+!!NOTE: THIS APPLICATIONS IS UNDERGOING SUBSTANTIAL REVISIONS TO THE SHINY CODE AND THE ALGORITHMS FOR COMPUTING CAUSAL EFFECTS. PLEASE STAY TUNED.
+
 This project is the latest version of the Fuzzy Systems Dynamics Modeling (FSDM) package. It includes a graphical user interface (Logic Laboratory) for building FSDM models, specifying scenarios, running the model on the scenarios, and displaying results. Using the GUI to build models and scenarios assures that the model and scenario files are properly formatted. It also simplifies the process of running the models and analyzing the results. Advanced users may also run model scenarios programmatically; loading models with the createFuzzyModel function, loading scenarios with the createFuzzyScenario function, and running the model with the runFuzzyModel function.
 
 ## Installing the Package and Dependencies
